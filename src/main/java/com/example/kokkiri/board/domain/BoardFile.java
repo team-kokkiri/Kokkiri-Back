@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class BoardFile extends BaseTimeEntity{
-
+    // 안냐세요
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
