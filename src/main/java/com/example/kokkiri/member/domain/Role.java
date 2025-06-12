@@ -1,2 +1,5 @@
-package com.example.kokkiri.member.domain;public enum Role {
+package com.example.kokkiri.member.domain;
+
+public enum Role {
+    USER, ADMIN
 }

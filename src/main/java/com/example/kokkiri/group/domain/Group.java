@@ -1,2 +1,28 @@
-package com.example.kokkiri.group.domain;public class Group {
+package com.example.kokkiri.group.domain;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Builder
+public class Group {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        @Column(nullable = false)
+        private String code;
+
+        @Column(nullable = false)
+        private String name;
+
+        @Builder.Default
+        private String isActive = "Y";
 }

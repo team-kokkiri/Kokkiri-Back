@@ -1,4 +1,4 @@
-//package com.example.chatserver.chat.config;
+package com.example.kokkiri.chat.config;//package com.example.chatserver.chat.config;
 //
 //import org.springframework.context.annotation.Configuration;
 //import org.springframework.web.socket.config.annotation.EnableWebSocket;

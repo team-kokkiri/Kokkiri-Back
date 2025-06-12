@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.service;
+package com.example.kokkiri.chat.service;
 
 
 import com.example.chatserver.chat.domain.ChatMessage;

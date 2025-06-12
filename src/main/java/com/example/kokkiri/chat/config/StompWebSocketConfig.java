@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.config;
+package com.example.kokkiri.chat.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;

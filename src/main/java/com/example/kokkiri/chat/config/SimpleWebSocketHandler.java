@@ -1,4 +1,4 @@
-//package com.example.chatserver.chat.config;
+package com.example.kokkiri.chat.config;//package com.example.chatserver.chat.config;
 //
 //
 //import lombok.extern.slf4j.Slf4j;

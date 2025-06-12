@@ -1,4 +1,4 @@
-package com.example.chatserver.common.domain;
+package com.example.kokkiri.common.entity;
 
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
