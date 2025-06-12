@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.config;
+package com.example.kokkiri.chat.config;
 
 import com.example.chatserver.chat.service.ChatService;
 import io.jsonwebtoken.Claims;

@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.dto;
+package com.example.kokkiri.chat.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

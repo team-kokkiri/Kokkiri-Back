@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.domain;
+package com.example.kokkiri.chat.domain;
 
 import com.example.chatserver.common.domain.BaseTimeEntity;
 import jakarta.persistence.*;

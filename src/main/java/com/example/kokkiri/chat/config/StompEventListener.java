@@ -1,4 +1,4 @@
-package com.example.chatserver.chat.config;
+package com.example.kokkiri.chat.config;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
