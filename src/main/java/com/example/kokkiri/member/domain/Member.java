@@ -1,7 +1,7 @@
 package com.example.kokkiri.member.domain;
 
 import com.example.kokkiri.calendar.domain.CalendarEvent;
-import com.example.kokkiri.group.domain.Group;
+import com.example.kokkiri.team.domain.Team;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,8 +43,8 @@ public class Member {
     private String delYn = "N";
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id", nullable = false)
-    private Group group;
+    @JoinColumn(name = "team_id", nullable = false)
+    private Team team;
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<CalendarEvent> calendarEvents = new ArrayList<>();

@@ -1,6 +1,6 @@
 package com.example.kokkiri.chat.domain;
 
-import com.example.chatserver.common.domain.BaseTimeEntity;
+import com.example.kokkiri.common.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
