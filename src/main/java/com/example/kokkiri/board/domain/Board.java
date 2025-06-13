@@ -1,6 +1,6 @@
 package com.example.kokkiri.board.domain;
 
-import com.example.kokkiri.common.entity.BaseTimeEntity;
+import com.example.kokkiri.common.domain.BaseTimeEntity;
 import com.example.kokkiri.member.domain.Member;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -21,10 +21,7 @@ public class Board extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long boardId;
-
-    @Column(nullable = false)
-    private Long memberId;
+    private Long id;
 
     @Column(nullable = false)
     private Long typeId;

@@ -1,4 +1,4 @@
-package com.example.kokkiri.common.entity;
+package com.example.kokkiri.common.domain;
 
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
