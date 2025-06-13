@@ -18,10 +18,10 @@ public class Team {
         private Long id;
 
         @Column(nullable = false)
-        private String code;
+        private String teamcode;
 
         @Column(nullable = false)
-        private String name;
+        private String teamName;
 
         @Builder.Default
         private String isActive = "Y";
