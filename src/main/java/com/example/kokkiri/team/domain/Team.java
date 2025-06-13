@@ -1,4 +1,4 @@
-package com.example.kokkiri.group.domain;
+package com.example.kokkiri.team.domain;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Getter
 @Builder
-public class Group {
+public class Team {
 
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)

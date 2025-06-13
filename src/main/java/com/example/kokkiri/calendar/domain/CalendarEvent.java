@@ -19,7 +19,7 @@ public class CalendarEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID id;
+    private Long id;
 
     @Column(nullable = false)
     private String title;
@@ -38,5 +38,5 @@ public class CalendarEvent {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "memberId", nullable = false)
-    private Member memberId;
+    private Member member;
 }
