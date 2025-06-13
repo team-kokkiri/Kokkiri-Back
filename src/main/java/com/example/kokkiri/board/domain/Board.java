@@ -23,9 +23,6 @@ public class Board extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long typeId;
-
     @Column(nullable = false, length = 50)
     private String boardTitle;
 
