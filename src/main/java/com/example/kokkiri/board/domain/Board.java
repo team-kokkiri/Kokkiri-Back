@@ -7,16 +7,18 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 
 import java.util.ArrayList;
 import java.util.List;
-
 
 @Entity
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE board SET del_yn = 'Y' WHERE id = ?")
+//@Where(clause = "delYn = 'N'")
 public class Board extends BaseTimeEntity {
 
     @Id
@@ -50,9 +52,20 @@ public class Board extends BaseTimeEntity {
     private List<BoardLike> boardLikes = new ArrayList<>();
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
+    @OrderBy("createdTime ASC")
     private List<BoardComment> boardComments = new ArrayList<>();
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     private List<BoardFile> boardFiles = new ArrayList<>();
+
+
+    public void update(String title, String content) {
+        this.boardTitle = title;
+        this.boardContent = content;
+    }
+
+//    public void softDelete() {
+//        this.delYn = "Y";
+//    }
 
 }

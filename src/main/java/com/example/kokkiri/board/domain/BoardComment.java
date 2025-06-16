@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BoardComment extends BaseTimeEntity{
+public class BoardComment extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,7 +32,6 @@ public class BoardComment extends BaseTimeEntity{
     private BoardComment parent; // 대댓글(부모 댓글)
 
     @Column(nullable = false)
-    @Lob
     private String commentContent;
 
     @Column(nullable = false, length = 1)
