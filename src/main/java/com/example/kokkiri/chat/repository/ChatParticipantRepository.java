@@ -2,7 +2,7 @@ package com.example.kokkiri.chat.repository;
 
 import com.example.kokkiri.chat.domain.ChatParticipant;
 import com.example.kokkiri.chat.domain.ChatRoom;
-import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.domain.entity.Member;
 import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

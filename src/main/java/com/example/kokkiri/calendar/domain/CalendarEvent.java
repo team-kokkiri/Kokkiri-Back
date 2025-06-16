@@ -1,6 +1,6 @@
 package com.example.kokkiri.calendar.domain;
 
-import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.domain.entity.Member;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @NoArgsConstructor

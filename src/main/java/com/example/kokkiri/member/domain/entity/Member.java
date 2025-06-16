@@ -1,6 +1,7 @@
-package com.example.kokkiri.member.domain;
+package com.example.kokkiri.member.domain.entity;
 
 import com.example.kokkiri.calendar.domain.CalendarEvent;
+import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.team.domain.Team;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -26,9 +27,6 @@ public class Member {
 
     private String password;
 
-    @Column(name = "class_id", nullable = false)
-    private Long classId;
-
     @Column(nullable = false, unique = true)
     private String nickname;
 
@@ -40,7 +38,7 @@ public class Member {
 
     @Column(nullable = false, length = 1)
     @Builder.Default
-    private String delYn = "N";
+    private String isActive = "Y";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)

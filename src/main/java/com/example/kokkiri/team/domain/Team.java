@@ -18,7 +18,7 @@ public class Team {
         private Long id;
 
         @Column(nullable = false)
-        private String code;
+        private String teamCode;
 
         @Column(nullable = false)
         private String name;
