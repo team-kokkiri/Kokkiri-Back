@@ -26,9 +26,6 @@ public class Member {
 
     private String password;
 
-    @Column(name = "class_id", nullable = false)
-    private Long classId;
-
     @Column(nullable = false, unique = true)
     private String nickname;
 

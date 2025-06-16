@@ -1,15 +1,11 @@
 package com.example.kokkiri.board.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-@Data
+@Getter
 @NoArgsConstructor
-@AllArgsConstructor
-public class BoardCreateReqDto {
-    private Long memberId;
-    private Long boardTypeId;
+public class BoardUpdateReqDto {
     private String boardTitle;
     private String boardContent;
     // 첨부파일
