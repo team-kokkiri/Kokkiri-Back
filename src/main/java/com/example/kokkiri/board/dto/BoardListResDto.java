@@ -13,7 +13,7 @@ public class BoardListResDto {
     private String boardContent;
     private String writer;
     private int likeCount;
-    //    private int commentCount;
+    private int commentCount;
     private LocalDateTime CreatedAt;
     private String boardTypes;
 }

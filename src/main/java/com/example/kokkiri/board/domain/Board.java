@@ -52,12 +52,13 @@ public class Board extends BaseTimeEntity {
     private List<BoardLike> boardLikes = new ArrayList<>();
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
+    @OrderBy("createdTime ASC")
     private List<BoardComment> boardComments = new ArrayList<>();
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     private List<BoardFile> boardFiles = new ArrayList<>();
 
-    
+
     public void update(String title, String content) {
         this.boardTitle = title;
         this.boardContent = content;
