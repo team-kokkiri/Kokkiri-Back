@@ -1,7 +1,7 @@
 package com.example.kokkiri.member.domain.service;
 
 import com.example.kokkiri.member.domain.Role;
-import com.example.kokkiri.member.domain.config.SecurityConfig;
+import com.example.kokkiri.member.domain.dto.MemberLoginRequest;
 import com.example.kokkiri.member.domain.dto.MemberSignupRequest;
 import com.example.kokkiri.member.domain.entity.Member;
 import com.example.kokkiri.member.domain.repository.MemberRepository;
@@ -19,9 +19,7 @@ public class MemberService {
     private final TeamRepository teamRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public void signup(MemberSignupRequest request){
-
-        System.out.println("teamCode = " + request.getTeamCode());
+    public void signup(MemberSignupRequest request) {
 
         Team team = teamRepository.findByTeamCode(request.getTeamCode())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지않은 코드입니다."));
@@ -37,4 +35,22 @@ public class MemberService {
         memberRepository.save(member);
     }
 
+    public Member login(MemberLoginRequest request) {
+        Member member = memberRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다"));
+
+        if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+            throw new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다.");
+        }
+        return member;
+    }
 }
+
+
+
+
+
+
+
+
+
