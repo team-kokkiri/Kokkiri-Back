@@ -1,4 +1,4 @@
-package com.example.kokkiri.common.domain.jwt;
+package com.example.kokkiri.common.jwt;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

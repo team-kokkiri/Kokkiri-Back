@@ -1,4 +1,4 @@
-package com.example.kokkiri.common.domain.config;
+package com.example.kokkiri.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

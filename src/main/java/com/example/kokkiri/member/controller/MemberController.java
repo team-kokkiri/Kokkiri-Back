@@ -1,8 +1,8 @@
 package com.example.kokkiri.member.controller;
 
-import com.example.kokkiri.common.domain.jwt.JwtResponse;
-import com.example.kokkiri.common.domain.jwt.JwtUtil;
-import com.example.kokkiri.common.domain.jwt.RefreshTokenService;
+import com.example.kokkiri.common.jwt.JwtResponse;
+import com.example.kokkiri.common.jwt.JwtUtil;
+import com.example.kokkiri.common.jwt.RefreshTokenService;
 import com.example.kokkiri.member.dto.MemberInfoResDto;
 import com.example.kokkiri.member.dto.MemberLoginReqDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
