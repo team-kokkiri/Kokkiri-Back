@@ -1,11 +1,11 @@
-package com.example.kokkiri.member.domain.dto;
+package com.example.kokkiri.member.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class MemberSignupRequest {
+public class MemberSignupReqDto {
     private String email;
     private String password;
     private String nickname;

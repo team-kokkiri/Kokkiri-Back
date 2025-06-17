@@ -1,0 +1,104 @@
+package com.example.kokkiri.member.controller;
+
+import com.example.kokkiri.common.domain.jwt.JwtResponse;
+import com.example.kokkiri.common.domain.jwt.JwtUtil;
+import com.example.kokkiri.common.domain.jwt.RefreshTokenService;
+import com.example.kokkiri.member.dto.MemberInfoResDto;
+import com.example.kokkiri.member.dto.MemberLoginReqDto;
+import com.example.kokkiri.member.dto.MemberSignupReqDto;
+import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.member.service.MemberService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+@RestController
+@RequestMapping("/api/members")
+@RequiredArgsConstructor
+public class MemberController {
+
+    private final MemberRepository memberRepository;
+    private final MemberService memberService;
+    private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
+
+    //회원가입
+    @PostMapping("/signup")
+    public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request){
+        memberService.signup(request);
+        System.out.println("회원가입 성공: " + request.getEmail());
+        return ResponseEntity.ok("회원가입이 완료되었습니다.");
+    }
+
+    //로그인
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request){
+        try{
+            Member member = memberService.login(request);
+            String accessToken = jwtUtil.generateToken(member.getEmail());
+            String refreshToken = jwtUtil.generateRefreshToken(member.getEmail());
+
+            // 응답 DTO에 둘 다 넣어줌
+            JwtResponse jwtResponse = new JwtResponse(accessToken, refreshToken, member.getEmail());
+
+            System.out.println("로그인 성공: " + member.getEmail());// 토큰 로그도 출력
+            System.out.println("액세스 토큰 발급 완료: " + accessToken);
+            System.out.println("리프레시 토큰 발급 완료: " + refreshToken);
+
+            // JwtResponse DTO를 JSON 형태로 응답
+            return ResponseEntity.ok(jwtResponse);
+        }catch(IllegalArgumentException e){
+            System.out.println("로그인 실패: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        }
+    }
+
+    //토큰확인
+    @GetMapping("/me")
+    public ResponseEntity<MemberInfoResDto> getMyInfo(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증 정보가 없습니다.");
+        }
+
+        String email = authentication.getName(); // 현재 설정에서 username이 email이라고 가정
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+
+        MemberInfoResDto response = new MemberInfoResDto(
+                member.getEmail(),
+                member.getNickname(),
+                member.getRole().name()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    // 리프레시 토큰으로 액세스 토큰 재발급
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshAccessToken(@RequestHeader("Refresh-Token") String refreshToken) {
+        if (!jwtUtil.validateToken(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token이 유효하지 않습니다.");
+        }
+
+        String email = jwtUtil.getEmailFromToken(refreshToken);
+        String storedRefreshToken = refreshTokenService.getRefreshToken(email);
+
+        if (!refreshToken.equals(storedRefreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("저장된 Refresh token과 일치하지 않습니다.");
+        }
+
+        // 새로운 access 토큰 발급
+        String newAccessToken = jwtUtil.generateToken(email);
+
+        System.out.println("리프레시 성공! 새 AccessToken 발급: " + newAccessToken);
+
+        return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken ,email));
+    }
+
+
+}

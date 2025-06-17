@@ -1,4 +1,4 @@
-package com.example.kokkiri.member.domain.dto;
+package com.example.kokkiri.member.dto;
 
 
 import lombok.Data;
@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
 @Data
-public class MemberLoginRequest {
+public class MemberLoginReqDto {
     private String email;
     private String password;
 }

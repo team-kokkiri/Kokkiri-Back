@@ -1,7 +1,7 @@
 package com.example.kokkiri.common.domain.jwt;
 
-import com.example.kokkiri.member.domain.entity.Member;
-import com.example.kokkiri.member.domain.repository.MemberRepository;
+import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.repository.MemberRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +30,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
+
         String header = request.getHeader("Authorization");
+        String refreshToken = request.getHeader("Refresh-Token");
+
+        if (refreshToken != null) {
+            System.out.println("요청에 포함된 Refresh Token: " + refreshToken);
+        }
+
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
 

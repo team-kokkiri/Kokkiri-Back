@@ -1,8 +1,8 @@
-package com.example.kokkiri.member.domain.config;
+package com.example.kokkiri.common.domain.config;
 
 import com.example.kokkiri.common.domain.jwt.JwtAuthenticationFilter;
 import com.example.kokkiri.common.domain.jwt.JwtUtil;
-import com.example.kokkiri.member.domain.repository.MemberRepository;
+import com.example.kokkiri.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,7 +36,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/members/signup", "/api/members/login").permitAll() //로그인,회원가입허용 추후 비밀번호찾기
+                        .requestMatchers(
+                                "/api/members/login",
+                                "/api/members/signup",
+                                "/api/members/refresh",
+                                "/api/members/password/**"  //추후 비밀번호재찾기
+                        ).permitAll()
+                        .requestMatchers("/api/members/me").authenticated() //보호
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil,memberRepository), UsernamePasswordAuthenticationFilter.class)

@@ -1,11 +1,11 @@
-package com.example.kokkiri.member.domain.dto;
+package com.example.kokkiri.member.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class MemberInfoResponse {
+public class MemberInfoResDto {
     private String email;
     private String nickname;
     private String role;
