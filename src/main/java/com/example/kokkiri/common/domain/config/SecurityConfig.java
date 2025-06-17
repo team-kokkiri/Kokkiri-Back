@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/members/login",
                                 "/api/members/signup",
                                 "/api/members/refresh",
-                                "/api/members/password/**"  //추후 비밀번호재찾기
+                                "/api/members/password/**", //추후 비밀번호재찾기
+                                "/api/email/**"
                         ).permitAll()
                         .requestMatchers("/api/members/me").authenticated() //보호
                         .anyRequest().authenticated()
