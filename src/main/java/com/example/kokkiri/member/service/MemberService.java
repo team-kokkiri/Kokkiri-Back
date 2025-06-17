@@ -18,8 +18,15 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final TeamRepository teamRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public void signup(MemberSignupReqDto request) {
+        // 이메일 인증 확인
+        boolean verified = emailService.isEmailVerified(request.getEmail(), "signup");
+        if (!verified) {
+            throw new IllegalStateException("이메일 인증이 완료되지 않았습니다.");
+        }
+
 
         Team team = teamRepository.findByTeamcode(request.getTeamCode())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지않은 팀코드입니다."));
@@ -45,12 +52,3 @@ public class MemberService {
         return member;
     }
 }
-
-
-
-
-
-
-
-
-

@@ -8,14 +8,18 @@ import com.example.kokkiri.member.dto.MemberLoginReqDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.member.service.EmailService;
 import com.example.kokkiri.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
@@ -25,12 +29,29 @@ public class MemberController {
     private final MemberService memberService;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final StringRedisTemplate redisTemplate; //redis인증여부 확인용
+    private final EmailService emailService;
 
     //회원가입
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request){
+        String email = request.getEmail();
+
+        // EmailService를 통해 인증 완료 여부 체크
+        if (!emailService.isEmailVerified(email, "signup")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("이메일 인증이 필요합니다.");
+        }
+
+        if (memberRepository.findByEmail(email).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 가입된 이메일입니다.");
+        }
+
         memberService.signup(request);
-        System.out.println("회원가입 성공: " + request.getEmail());
+
+        // 인증 정보 Redis에서 삭제 (선택)
+        String verifiedKey = "email:verified:signup:" + email;
+        redisTemplate.delete(verifiedKey);
+
         return ResponseEntity.ok("회원가입이 완료되었습니다.");
     }
 
@@ -48,9 +69,9 @@ public class MemberController {
 
             JwtResponse jwtResponse = new JwtResponse(accessToken, refreshToken, member.getEmail());
 
-            System.out.println("로그인 성공: " + member.getEmail());// 토큰 로그도 출력
-            System.out.println("액세스 토큰 발급 완료: " + accessToken);
-            System.out.println("리프레시 토큰 발급 완료: " + refreshToken);
+            log.info("로그인 성공: {}", member.getEmail());
+            log.info("액세스 토큰 발급: {}", accessToken);
+            log.info("리프레시 토큰 발급: {}", refreshToken);
 
             // JwtResponse DTO를 JSON 형태로 응답
             return ResponseEntity.ok(jwtResponse);
