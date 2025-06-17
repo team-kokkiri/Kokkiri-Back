@@ -8,8 +8,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
@@ -17,7 +21,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Member {
+public class Member implements UserDetails {  // UserDetails 구현
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,7 +53,41 @@ public class Member {
     private List<CalendarEvent> calendarEvents = new ArrayList<>();
 
 
-    // 양방향 매핑이 필요하다면 아래 주석 해제
-    // @OneToMany(mappedBy = "member")
-    // private List<Board> boards = new ArrayList<>();
+    // === UserDetails 인터페이스 메서드 구현 ===
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // ROLE_ 접두사 붙여서 권한 반환 (ex. ROLE_USER, ROLE_ADMIN)
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return email;  // 로그인 아이디로 email 사용
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;  // 계정 만료 안 됨으로 처리
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;  // 계정 잠기지 않음
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;  // 비밀번호 만료 안 됨
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isActive.equals("Y");  // 활성화 여부 체크
+    }
 }

@@ -42,7 +42,10 @@ public class MemberController {
             String accessToken = jwtUtil.generateToken(member.getEmail());
             String refreshToken = jwtUtil.generateRefreshToken(member.getEmail());
 
-            // 응답 DTO에 둘 다 넣어줌
+            // 리프레시 토큰 만료 시간 계산 후 Redis에 저장
+            long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
+            refreshTokenService.saveRefreshToken(member.getEmail(), refreshToken, refreshTokenExpiry);
+
             JwtResponse jwtResponse = new JwtResponse(accessToken, refreshToken, member.getEmail());
 
             System.out.println("로그인 성공: " + member.getEmail());// 토큰 로그도 출력
@@ -57,6 +60,23 @@ public class MemberController {
         }
     }
 
+    //로그아웃 토큰까지삭제
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(Authentication authentication) {
+        String email = authentication.getName();
+        System.out.println("로그아웃 시도: " + email);
+
+        String beforeDelete = refreshTokenService.getRefreshToken(email);
+        System.out.println("삭제 전 토큰: " + beforeDelete);
+        refreshTokenService.deleteRefreshToken(email); // Redis에서 삭제
+
+        String afterDelete = refreshTokenService.getRefreshToken(email);
+        System.out.println("삭제 후 토큰: " + afterDelete);
+
+        return ResponseEntity.ok("로그아웃 성공");
+    }
+    
+    
     //토큰확인
     @GetMapping("/me")
     public ResponseEntity<MemberInfoResDto> getMyInfo(Authentication authentication) {

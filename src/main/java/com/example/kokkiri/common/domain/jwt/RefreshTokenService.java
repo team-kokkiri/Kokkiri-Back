@@ -21,6 +21,7 @@ public class RefreshTokenService {
                 refreshToken,
                 Duration.ofMillis(expirationMillis)
         );
+        System.out.println("Redis 저장 완료: " + email + " -> " + refreshToken);
     }
 
     // 리프레시 토큰 조회

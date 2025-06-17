@@ -65,4 +65,14 @@ public class JwtUtil {
             return false;
         }
     }
+    
+    //리프래시토큰이 언제 만료되는지 알기 위한 시간 저장
+    public long getExpiration(String token) {
+        return Jwts.parser()
+                .setSigningKey(secretKey)
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration()
+                .getTime() - System.currentTimeMillis();
+    }
 }

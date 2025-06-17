@@ -50,14 +50,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                member, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                                member, null, member.getAuthorities());
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 System.out.println("JwtAuthenticationFilter: 토큰 유효하지 않음");
             }
-        } else {
-            System.out.println("JwtAuthenticationFilter: Authorization 헤더가 없거나 Bearer 토큰이 아님");
         }
 
         filterChain.doFilter(request, response);
