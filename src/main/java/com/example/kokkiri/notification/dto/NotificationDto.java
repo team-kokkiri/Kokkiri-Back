@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 public class NotificationDto {
     private String content;
     private String url;
-    private String toName;
     private NotificationType notificationType;
     private LocalDateTime actionCreatedAt;
 }

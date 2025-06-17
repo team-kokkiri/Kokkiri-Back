@@ -17,13 +17,9 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Embedded
-    private NotificationContent content;
+    private String content;
 
-    @Embedded
-    private RelatedUrl url;
-
-    private String toName;
+    private String url;
 
     @Enumerated(EnumType.STRING)
     private NotificationType notificationType;
@@ -38,8 +34,8 @@ public class Notification {
     public Notification(Member receiver, NotificationType notificationType, String content, String url, LocalDateTime actionCreatedAt){
         this.receiver = receiver;
         this.notificationType = notificationType;
-        this.content = new NotificationContent(content);
-        this.url = new RelatedUrl(url);
+        this.content = content;
+        this.url = url;
         this.actionCreatedAt = actionCreatedAt;
     }
 
