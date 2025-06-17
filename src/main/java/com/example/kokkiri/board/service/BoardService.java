@@ -1,12 +1,12 @@
 package com.example.kokkiri.board.service;
 
 import com.example.kokkiri.board.domain.Board;
-import com.example.kokkiri.board.domain.BoardComment;
 import com.example.kokkiri.board.domain.BoardType;
+import com.example.kokkiri.board.domain.Comment;
 import com.example.kokkiri.board.dto.*;
-import com.example.kokkiri.board.repository.BoardCommentRepository;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
+import com.example.kokkiri.board.repository.CommentRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import jakarta.transaction.Transactional;
@@ -24,7 +24,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final MemberRepository memberRepository;
     private final BoardTypeRepository boardTypeRepository;
-    private final BoardCommentRepository boardCommentRepository;
+    private final CommentRepository boardCommentRepository;
 
     // 게시글 작성
     public Board createBoard(BoardCreateReqDto boardCreateReqDto) {
@@ -45,14 +45,14 @@ public class BoardService {
         return boardRepository.save(board);
     }
 
-    // 게시글 리스트조회 - 생성일순
-    public List<Board> findBoardList() {
-        return boardRepository.findByDelYnOrderByCreatedTimeDesc("N");
+    // 자유게시판
+    public List<Board> findBoardList(Long id) {
+        return boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(id, "N");
     }
 
-    // 게시글 리스트조회 - 좋아요순
-    public List<Board> findPopularBoards() {
-        return boardRepository.findByDelYnOrderByLikeCountDescCreatedTimeDesc("N");
+    // BEST 게시판
+    public List<Board> findPopularBoards(Long id) {
+        return boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(id, "N");
     }
 
     // 게시글 상세조회
@@ -96,14 +96,14 @@ public class BoardService {
     }
 
     // 댓글 작성
-    public BoardComment createComment(Long id, CommentCreateReqDto commentCreateReqDto) {
+    public Comment createComment(Long id, CommentCreateReqDto commentCreateReqDto) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
         Member member = memberRepository.findById(commentCreateReqDto.getMemberId())
                 .orElseThrow(() -> new IllegalArgumentException("member is not found"));
 
-        BoardComment boardComment = BoardComment.builder()
+        Comment boardComment = Comment.builder()
                 .board(board)
                 .member(member)
                 .commentContent(commentCreateReqDto.getComment())
