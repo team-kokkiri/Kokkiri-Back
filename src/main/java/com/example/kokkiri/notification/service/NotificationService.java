@@ -103,6 +103,7 @@ public class NotificationService {
                         .url(notification.getUrl())
                         .notificationType(notification.getNotificationType())
                         .actionCreatedAt(notification.getActionCreatedAt())
+                        .isRead(notification.getIsRead())
                         .build();
             }
 
@@ -158,11 +159,22 @@ public class NotificationService {
                     .url(n.getUrl())
                     .notificationType(n.getNotificationType())
                     .actionCreatedAt(n.getActionCreatedAt())
+                    .isRead(n.getIsRead())
                     .build();
             dtos.add(dto);
         }
 
         return dtos;
+    }
+
+    public void deleteNotification(Long notificationId){
+        Notification notification = notificationRepository.findById(notificationId).orElseThrow(()->new EntityNotFoundException("해당 ID의 알림을 찾을 수 없습니다."));
+        notification.delete();
+    }
+
+    public void updateNotificationReadStatus(Long notificationId){
+        Notification notification = notificationRepository.findById(notificationId).orElseThrow(()->new EntityNotFoundException("해당 ID의 알림을 찾을 수 없습니다."));
+        notification.updateIsRead();
     }
 
 

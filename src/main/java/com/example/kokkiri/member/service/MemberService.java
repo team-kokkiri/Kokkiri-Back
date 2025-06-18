@@ -1,6 +1,6 @@
 package com.example.kokkiri.member.service;
 
-import com.example.kokkiri.member.Role;
+import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.dto.MemberLoginReqDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
 import com.example.kokkiri.member.domain.Member;
