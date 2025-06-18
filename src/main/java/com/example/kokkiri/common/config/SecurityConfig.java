@@ -2,6 +2,9 @@ package com.example.kokkiri.common.config;
 
 import com.example.kokkiri.common.jwt.JwtAuthenticationFilter;
 import com.example.kokkiri.common.jwt.JwtUtil;
+import com.example.kokkiri.common.jwt.RefreshTokenService;
+import com.example.kokkiri.common.oauth.CustomOAuth2UserService;
+import com.example.kokkiri.common.oauth.OAuth2AuthenticationSuccessHandler;
 import com.example.kokkiri.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +30,9 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
     private final MemberRepository memberRepository;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -46,16 +51,32 @@ public class SecurityConfig {
                                 "/api/members/login",
                                 "/api/members/signup",
                                 "/api/members/refresh",
-                                "/api/members/password/**",  //추후 비밀번호재찾기
+                                "/api/members/reset",
                                 "/connect/**",
                                 "/api/email/**",
+                                "/oauth2/**",
+                                "/api/members/oauth2/success"
                                 "/api/boards/**"
                         ).permitAll()
-                        .requestMatchers("/api/members/me").authenticated() //보호
+                        // 관리자만 접근 가능
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        //  인증만 되면 접근 가능한 API
+                        .requestMatchers("/api/members/me").authenticated()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)) // 사용자 정보 로드
+                        .successHandler(oAuth2AuthenticationSuccessHandler())
+                )
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil,memberRepository),
+                        UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    @Bean
+    public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
+        return new OAuth2AuthenticationSuccessHandler(jwtUtil, refreshTokenService);
     }
 
     @Bean
