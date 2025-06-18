@@ -9,6 +9,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ChatInvitationRepository extends JpaRepository<ChatInvitation, Long> {
-    boolean existsByChatRoomAndInvitedMemberAndRespondYnAndDelYn(
-            ChatRoom chatRoom, Member invitedMember, String respondYn, String delYn);
+    boolean existsByChatRoomAndInvitedMemberAndDelYn(
+            ChatRoom chatRoom, Member invitedMember, String delYn);
 }
