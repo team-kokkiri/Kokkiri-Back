@@ -5,9 +5,7 @@ import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,12 +28,7 @@ public class BoardController {
 
     // 게시글 리스트조회
     @GetMapping("/list/{typeId}")
-    public ResponseEntity<List<BoardListResDto>> getBoardList(Authentication authentication,
-                                                              @PathVariable Long typeId) {
-        // 로그인하지 않은 사용자는 자유게시판만 열람 가능
-        if (!typeId.equals(1L) && authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
 
         List<Board> boards = (typeId == 3L)
                 ? boardService.findPopularBoards(typeId) // BEST 게시판

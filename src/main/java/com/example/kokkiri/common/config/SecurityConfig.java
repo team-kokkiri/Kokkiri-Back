@@ -49,7 +49,7 @@ public class SecurityConfig {
                                 "/api/members/password/**",  //추후 비밀번호재찾기
                                 "/connect/**",
                                 "/api/email/**",
-                                "/api/boards/list/1"
+                                "/api/boards/**"
                         ).permitAll()
                         .requestMatchers("/api/members/me").authenticated() //보호
                         .anyRequest().authenticated()
