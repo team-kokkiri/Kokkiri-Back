@@ -7,6 +7,7 @@ import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,18 +28,18 @@ public class BoardController {
         return ResponseEntity.ok(board.getId());
     }
 
-    // 자유게시판 리스트조회
+    // 게시글 리스트조회
     @GetMapping("/list/{typeId}")
-    public ResponseEntity<List<BoardListResDto>> getBoardList(@AuthenticationPrincipal Member member,
+    public ResponseEntity<List<BoardListResDto>> getBoardList(Authentication authentication,
                                                               @PathVariable Long typeId) {
-        // 로그인 필요 게시판
-        if ((typeId == 2L || typeId == 3L || typeId == 4L) && member == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null); // 401
+        // 로그인하지 않은 사용자는 자유게시판만 열람 가능
+        if (!typeId.equals(1L) && authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        List<Board> boards;
-        if (typeId == 3L) boards = boardService.findPopularBoards(typeId); // BEST 게시판
-        else boards = boardService.findBoardList(typeId); // 자유, 공지사항, 자료공유 게시판
+        List<Board> boards = (typeId == 3L)
+                ? boardService.findPopularBoards(typeId) // BEST 게시판
+                : boardService.findBoardList(typeId); // 자유, 공지사항, 자료공유 게시판
 
         List<BoardListResDto> boardListResDtos = boards.stream()
                 .map(board -> new BoardListResDto(

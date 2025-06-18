@@ -38,7 +38,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .cors(cors->cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -48,12 +48,13 @@ public class SecurityConfig {
                                 "/api/members/refresh",
                                 "/api/members/password/**",  //추후 비밀번호재찾기
                                 "/connect/**",
-                                "/api/email/**"
+                                "/api/email/**",
+                                "/api/boards/list/1"
                         ).permitAll()
                         .requestMatchers("/api/members/me").authenticated() //보호
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil,memberRepository), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
