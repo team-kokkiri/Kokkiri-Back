@@ -1,7 +1,6 @@
 package com.example.kokkiri.member.domain;
 
 import com.example.kokkiri.calendar.domain.CalendarEvent;
-import com.example.kokkiri.member.Role;
 import com.example.kokkiri.team.domain.Team;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

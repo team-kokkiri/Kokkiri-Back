@@ -4,6 +4,7 @@ import com.example.kokkiri.member.domain.Member;
 import jakarta.persistence.*;
 import lombok.*;
 
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Getter
 @ToString(exclude = "receiver")
+@Builder
 public class Notification {
 
     @Id
@@ -30,13 +32,32 @@ public class Notification {
 
     private LocalDateTime actionCreatedAt;
 
-    @Builder
-    public Notification(Member receiver, NotificationType notificationType, String content, String url, LocalDateTime actionCreatedAt){
-        this.receiver = receiver;
-        this.notificationType = notificationType;
-        this.content = content;
-        this.url = url;
-        this.actionCreatedAt = actionCreatedAt;
+    @Column(length = 1)
+    @Builder.Default
+    private String isRead = "N";
+
+    @Column(length = 1)
+    @Builder.Default
+    private String delYn = "N";
+
+//    @Builder
+//    public Notification(Member receiver, NotificationType notificationType, String content, String url, LocalDateTime actionCreatedAt){
+//        this.receiver = receiver;
+//        this.notificationType = notificationType;
+//        this.content = content;
+//        this.url = url;
+//        this.actionCreatedAt = actionCreatedAt;
+//
+//    }
+
+    public void updateIsRead(){
+        this.isRead = "Y";
     }
+
+    public void delete(){
+        this.delYn = "Y";
+    }
+
+
 
 }

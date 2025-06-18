@@ -15,4 +15,5 @@ public class NotificationDto {
     private String url;
     private NotificationType notificationType;
     private LocalDateTime actionCreatedAt;
+    private String isRead;
 }
