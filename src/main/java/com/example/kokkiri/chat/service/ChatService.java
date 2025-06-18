@@ -303,7 +303,12 @@ public class ChatService {
 
         boolean alreadyExists = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, invitedMember);
         if (alreadyExists) {
-            throw new IllegalStateException("이미 참여 중인 사용자입니다.");
+            throw new IllegalStateException("이미 참여중인 사용자입니다.");
+        }
+
+        boolean alreadyInvited = chatInvitationRepository.existsByChatRoomAndInvitedMemberAndRespondYnAndDelYn(chatRoom, invitedMember, "N", "N");
+        if (alreadyInvited) {
+            throw new IllegalStateException("이미 초대장을 보낸 유저입니다.");
         }
 
         Member inviter = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
@@ -324,9 +329,12 @@ public class ChatService {
         ChatInvitation invitation = chatInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
 
-        if ("Y".equals(invitation.getRespondedYn())) throw new IllegalStateException("이미 응답한 초대입니다.");
-
         Member invitedMember = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
+
+        boolean alreadyExists = chatParticipantRepository.existsByChatRoomAndMember(invitation.getChatRoom(), invitedMember);
+        if (alreadyExists) {
+            throw new IllegalStateException("이미 참여중인 채팅방입니다.");
+        }
 
         ChatParticipant newParticipant = ChatParticipant.builder()
                 .chatRoom(invitation.getChatRoom())
@@ -334,12 +342,13 @@ public class ChatService {
                 .build();
 
         chatParticipantRepository.save(newParticipant);
-        invitation.accept();
+        invitation.response();
     }
 
     public void rejectInvitation(Long invitationId) {
         ChatInvitation invitation = chatInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
-        invitation.reject();
+
+        invitation.response();
     }
 }
