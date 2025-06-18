@@ -55,7 +55,7 @@ public class SecurityConfig {
                                 "/connect/**",
                                 "/api/email/**",
                                 "/oauth2/**",
-                                "/api/members/oauth2/success"
+                                "/api/members/oauth2/success",
                                 "/api/boards/**"
                         ).permitAll()
                         // 관리자만 접근 가능

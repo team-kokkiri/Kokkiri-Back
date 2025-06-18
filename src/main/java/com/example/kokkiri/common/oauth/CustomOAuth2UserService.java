@@ -3,7 +3,7 @@ package com.example.kokkiri.common.oauth;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.team.domain.Team;
-import com.example.kokkiri.team.domain.repository.TeamRepository;
+import com.example.kokkiri.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -27,7 +27,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String email = (String) oAuth2User.getAttributes().get("email");
 
         Optional<Member> existingUser = memberRepository.findByEmail(email);
-        Team team = teamRepository.findByTeamcode("oauth2")
+        Team team = teamRepository.findByTeamCode("oauth2")
                 .orElseThrow(() -> new RuntimeException("oauth2 팀이 없습니다."));
 
         if (existingUser.isEmpty()) {
@@ -35,7 +35,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .email(email)
                     .password("") // OAuth2 사용자라면 비번 없음
                     .nickname("구글사용자_" + UUID.randomUUID().toString().substring(0, 6))
-                    .role(com.example.kokkiri.member.Role.USER)
+                    .role(com.example.kokkiri.member.domain.Role.USER)
                     .provider("google")
                     .team(team)  // 임시 팀코드
                     .build();
