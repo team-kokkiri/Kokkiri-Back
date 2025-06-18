@@ -3,6 +3,7 @@ package com.example.kokkiri.member.service;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import java.time.Duration;
 import java.util.Random;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -27,6 +29,7 @@ public class EmailService {
         String code = createRandomCode();
         saveCodeToRedis(toEmail, code, type);
 
+        log.info("[인증 코드 전송] 이메일: {}, 코드: {}", toEmail, code);
         MimeMessage message = mailSender.createMimeMessage();
 
         try {
@@ -91,7 +94,7 @@ public class EmailService {
     //Redis에 인증 코드 저장 (3분 유지)
     private void saveCodeToRedis(String email, String code, String type) {
         String key = getCodeKey(email, type);
-        redisTemplate.opsForValue().set(key, code, Duration.ofMinutes(3));
+        redisTemplate.opsForValue().set(key, code, Duration.ofMinutes(1));
     }
 
     //인증 코드 Redis 키 생성 (일관성 유지)
@@ -102,6 +105,11 @@ public class EmailService {
     //인증 완료 플래그 Redis 키 생성 (일관성 유지)
     private String getVerifiedKey(String email, String type) {
         return "email:verified:" + type + ":" + email;
+    }
+
+    //인증 완료 redis 키 삭제
+    public void deleteVerifiedKey(String key) {
+        redisTemplate.delete(key);
     }
 
     //6자리 랜덤 인증 코드 생성

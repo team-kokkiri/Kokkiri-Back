@@ -51,4 +51,28 @@ public class MemberService {
         }
         return member;
     }
+
+    public void resetPassword(String email, String newPassword) {
+        // 1. 인증 여부 확인 (Redis에 인증 완료 여부 있는지 확인)
+        boolean verified = emailService.isEmailVerified(email, "reset");
+        if (!verified) {
+            throw new IllegalStateException("이메일 인증이 완료되지 않았습니다.");
+        }
+
+        // 2. 사용자 존재 여부 확인
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        // 3. 비밀번호 암호화 후 저장
+        member.setPassword(passwordEncoder.encode(newPassword));
+        memberRepository.save(member);
+
+        // 4. Redis 인증 정보 삭제
+        String verifiedKey = "email:verified:reset:" + email;
+        emailService.deleteVerifiedKey(verifiedKey);
+    }
 }
+
+
+
+

@@ -5,6 +5,7 @@ import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.common.jwt.RefreshTokenService;
 import com.example.kokkiri.member.dto.MemberInfoResDto;
 import com.example.kokkiri.member.dto.MemberLoginReqDto;
+import com.example.kokkiri.member.dto.MemberResetPasswordReqDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -141,5 +142,39 @@ public class MemberController {
         return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken ,email));
     }
 
+    @PostMapping("/reset_Password")
+    public ResponseEntity<String> resetPassword(@RequestBody MemberResetPasswordReqDto request) {
+        String email = request.getEmail();
+
+        //이메일인증여부 확인
+        if (!emailService.isEmailVerified(email, "reset")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("이메일 인증이 필요합니다.");
+        }
+        try{
+            memberService.resetPassword(email, request.getNewPassword());
+            log.info("변경된 비밀번호: "+ request.getNewPassword());
+            //인증정보삭제
+            String VerifiedKey = "email:verified:reset:" + email;
+            redisTemplate.delete(VerifiedKey);
+
+
+            return ResponseEntity.ok("비밀번호가 성공적으로 재설정되었습니다!!");
+            }catch (IllegalArgumentException e) {
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
