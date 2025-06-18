@@ -57,6 +57,11 @@ public class BoardController {
     }
 
     // 게시글 수정
+
+    /**
+     * @AuthenticationPrincipal: Authentication 객체 안에 들어있는 principal을 직접 꺼내주는 어노테이션
+     * 내부적으로 SecurityContextHolder.getContext().getAuthentication().getPrincipal()과 동일
+     */
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBoard(@PathVariable Long id,
                                          @AuthenticationPrincipal Member member,
