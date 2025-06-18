@@ -27,7 +27,6 @@ public class MemberService {
             throw new IllegalStateException("이메일 인증이 완료되지 않았습니다.");
         }
 
-
         Team team = teamRepository.findByTeamcode(request.getTeamCode())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지않은 팀코드입니다."));
 

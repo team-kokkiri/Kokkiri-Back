@@ -61,8 +61,9 @@ public class MemberController {
     public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request){
         try{
             Member member = memberService.login(request);
-            String accessToken = jwtUtil.generateToken(member.getEmail());
-            String refreshToken = jwtUtil.generateRefreshToken(member.getEmail());
+            String role = member.getRole().name();
+            String accessToken = jwtUtil.generateToken(member.getEmail(), role, true);
+            String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false);
 
             // 리프레시 토큰 만료 시간 계산 후 Redis에 저장
             long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
@@ -97,8 +98,8 @@ public class MemberController {
 
         return ResponseEntity.ok("로그아웃 성공");
     }
-    
-    
+
+
     //토큰확인
     @GetMapping("/me")
     public ResponseEntity<MemberInfoResDto> getMyInfo(Authentication authentication) {
@@ -135,14 +136,18 @@ public class MemberController {
         }
 
         // 새로운 access 토큰 발급
-        String newAccessToken = jwtUtil.generateToken(email);
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+        String role = member.getRole().name();
+
+        String newAccessToken = jwtUtil.generateToken(email, role, true);
 
         System.out.println("리프레시 성공! 새 AccessToken 발급: " + newAccessToken);
 
         return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken ,email));
     }
 
-    @PostMapping("/reset_Password")
+    @PostMapping("/reset")
     public ResponseEntity<String> resetPassword(@RequestBody MemberResetPasswordReqDto request) {
         String email = request.getEmail();
 
