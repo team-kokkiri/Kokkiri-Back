@@ -10,8 +10,10 @@ import java.util.List;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    @Query("SELECT n FROM Notification n WHERE n.receiver.id = :memberId " +
-            "ORDER BY CASE WHEN n.notificationType = com.example.kokkiri.notification.domain.NotificationType.INVITATION THEN 0 ELSE 1 END, n.actionCreatedAt DESC")
+    @Query("SELECT n FROM Notification n " +
+            "WHERE n.receiver.id = :memberId AND n.delYn = 'N' " +
+            "ORDER BY CASE WHEN n.notificationType = com.example.kokkiri.notification.domain.NotificationType.INVITATION THEN 0 ELSE 1 END, " +
+            "n.actionCreatedAt DESC")
     List<Notification> findAllByMemberIdOrderByInvitationFirst(@Param("memberId") Long memberId);
-}
 
+}

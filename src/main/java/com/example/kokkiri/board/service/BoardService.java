@@ -1,16 +1,17 @@
 package com.example.kokkiri.board.service;
 
 import com.example.kokkiri.board.domain.Board;
-import com.example.kokkiri.board.domain.BoardComment;
 import com.example.kokkiri.board.domain.BoardType;
+import com.example.kokkiri.board.domain.Comment;
 import com.example.kokkiri.board.dto.*;
-import com.example.kokkiri.board.repository.BoardCommentRepository;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
+import com.example.kokkiri.board.repository.CommentRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,14 +25,10 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final MemberRepository memberRepository;
     private final BoardTypeRepository boardTypeRepository;
-    private final BoardCommentRepository boardCommentRepository;
+    private final CommentRepository boardCommentRepository;
 
     // 게시글 작성
-    public Board createBoard(BoardCreateReqDto boardCreateReqDto) {
-
-        Member member = memberRepository.findById(boardCreateReqDto.getMemberId())
-                .orElseThrow(() -> new IllegalArgumentException("member is not found"));
-
+    public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member) {
         BoardType boardType = boardTypeRepository.findById(boardCreateReqDto.getBoardTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
 
@@ -45,14 +42,14 @@ public class BoardService {
         return boardRepository.save(board);
     }
 
-    // 게시글 리스트조회 - 생성일순
-    public List<Board> findBoardList() {
-        return boardRepository.findByDelYnOrderByCreatedTimeDesc("N");
+    // 자유게시판
+    public List<Board> findBoardList(Long id) {
+        return boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(id, "N");
     }
 
-    // 게시글 리스트조회 - 좋아요순
-    public List<Board> findPopularBoards() {
-        return boardRepository.findByDelYnOrderByLikeCountDescCreatedTimeDesc("N");
+    // BEST 게시판
+    public List<Board> findPopularBoards(Long id) {
+        return boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(id, "N");
     }
 
     // 게시글 상세조회
@@ -83,27 +80,31 @@ public class BoardService {
     }
 
     // 게시글 수정
-    public void updateBoard(Long id, BoardUpdateReqDto boardUpdateReqDto) {
+    public void updateBoard(Long id, Member member, BoardUpdateReqDto boardUpdateReqDto) {
         Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        // 권한 체크
+        if (!board.getMember().getId().equals(member.getId())) throw new AccessDeniedException("게시글 수정 권한이 없습니다.");
         board.update(boardUpdateReqDto.getBoardTitle(), boardUpdateReqDto.getBoardContent());
     }
 
     // 게시글 삭제
-    public void softDeleteBoard(Long id) {
+    public void softDeleteBoard(Long id, Member member) {
         Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        // 권한 체크
+        if (!board.getMember().getId().equals(member.getId())) throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         boardRepository.delete(board);
 //        board.setDelYn("Y");
     }
 
     // 댓글 작성
-    public BoardComment createComment(Long id, CommentCreateReqDto commentCreateReqDto) {
+    public Comment createComment(Long id, CommentCreateReqDto commentCreateReqDto) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
         Member member = memberRepository.findById(commentCreateReqDto.getMemberId())
                 .orElseThrow(() -> new IllegalArgumentException("member is not found"));
 
-        BoardComment boardComment = BoardComment.builder()
+        Comment boardComment = Comment.builder()
                 .board(board)
                 .member(member)
                 .commentContent(commentCreateReqDto.getComment())

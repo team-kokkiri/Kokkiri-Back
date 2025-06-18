@@ -1,12 +1,12 @@
 package com.example.kokkiri.member.service;
 
-import com.example.kokkiri.member.Role;
+import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.dto.MemberLoginReqDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.team.domain.Team;
-import com.example.kokkiri.team.domain.repository.TeamRepository;
+import com.example.kokkiri.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class MemberService {
             throw new IllegalStateException("이메일 인증이 완료되지 않았습니다.");
         }
 
-        Team team = teamRepository.findByTeamcode(request.getTeamCode())
+        Team team = teamRepository.findByTeamCode(request.getTeamCode())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지않은 팀코드입니다."));
 
         Member member = Member.builder()
