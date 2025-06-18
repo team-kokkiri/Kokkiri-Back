@@ -1,5 +1,6 @@
-package com.example.kokkiri.board.domain;
+package com.example.kokkiri.comment.domain;
 
+import com.example.kokkiri.board.domain.Board;
 import com.example.kokkiri.common.domain.BaseTimeEntity;
 import com.example.kokkiri.member.domain.Member;
 import jakarta.persistence.*;
@@ -37,4 +38,9 @@ public class Comment extends BaseTimeEntity {
     @Column(nullable = false, length = 1)
     @Builder.Default
     private String delYn = "N";
+
+    // 댓글 수정
+    public void update(String newContent) {
+        this.commentContent = newContent;
+    }
 }
