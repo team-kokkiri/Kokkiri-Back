@@ -29,7 +29,6 @@ public class Board extends BaseTimeEntity {
     private String boardTitle;
 
     @Column(nullable = false)
-    @Lob
     private String boardContent;
 
     @Column(nullable = false, length = 1)
@@ -53,7 +52,7 @@ public class Board extends BaseTimeEntity {
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     @OrderBy("createdTime ASC")
-    private List<BoardComment> boardComments = new ArrayList<>();
+    private List<Comment> boardComments = new ArrayList<>();
 
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     private List<BoardFile> boardFiles = new ArrayList<>();
