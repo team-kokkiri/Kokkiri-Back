@@ -11,6 +11,7 @@ import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,11 +28,7 @@ public class BoardService {
     private final CommentRepository boardCommentRepository;
 
     // 게시글 작성
-    public Board createBoard(BoardCreateReqDto boardCreateReqDto) {
-
-        Member member = memberRepository.findById(boardCreateReqDto.getMemberId())
-                .orElseThrow(() -> new IllegalArgumentException("member is not found"));
-
+    public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member) {
         BoardType boardType = boardTypeRepository.findById(boardCreateReqDto.getBoardTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
 
@@ -83,14 +80,18 @@ public class BoardService {
     }
 
     // 게시글 수정
-    public void updateBoard(Long id, BoardUpdateReqDto boardUpdateReqDto) {
+    public void updateBoard(Long id, Member member, BoardUpdateReqDto boardUpdateReqDto) {
         Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        // 권한 체크
+        if (!board.getMember().getId().equals(member.getId())) throw new AccessDeniedException("게시글 수정 권한이 없습니다.");
         board.update(boardUpdateReqDto.getBoardTitle(), boardUpdateReqDto.getBoardContent());
     }
 
     // 게시글 삭제
-    public void softDeleteBoard(Long id) {
+    public void softDeleteBoard(Long id, Member member) {
         Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        // 권한 체크
+        if (!board.getMember().getId().equals(member.getId())) throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         boardRepository.delete(board);
 //        board.setDelYn("Y");
     }
