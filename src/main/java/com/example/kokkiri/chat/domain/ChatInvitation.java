@@ -33,13 +33,8 @@ public class ChatInvitation extends BaseTimeEntity {
     @Builder.Default
     private String delYn = "N";
 
-    @Column(length = 1)
-    @Builder.Default
-    private String respondYn = "N";
 
-
-    public void response() {
-        this.respondYn = "Y";
+    public void delete() {
         this.delYn = "Y";
     }
 

@@ -306,7 +306,7 @@ public class ChatService {
             throw new IllegalStateException("이미 참여중인 사용자입니다.");
         }
 
-        boolean alreadyInvited = chatInvitationRepository.existsByChatRoomAndInvitedMemberAndRespondYnAndDelYn(chatRoom, invitedMember, "N", "N");
+        boolean alreadyInvited = chatInvitationRepository.existsByChatRoomAndInvitedMemberAndDelYn(chatRoom, invitedMember, "N");
         if (alreadyInvited) {
             throw new IllegalStateException("이미 초대장을 보낸 유저입니다.");
         }
@@ -342,13 +342,13 @@ public class ChatService {
                 .build();
 
         chatParticipantRepository.save(newParticipant);
-        invitation.response();
+        invitation.delete();
     }
 
     public void rejectInvitation(Long invitationId) {
         ChatInvitation invitation = chatInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
 
-        invitation.response();
+        invitation.delete();
     }
 }

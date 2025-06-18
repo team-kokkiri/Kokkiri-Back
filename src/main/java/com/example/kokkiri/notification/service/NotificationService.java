@@ -10,6 +10,8 @@ import com.example.kokkiri.notification.repository.NotificationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -146,13 +148,14 @@ public class NotificationService {
                 .build();
     }
 
-    public List<NotificationDto> getNotifications(){
+    public List<NotificationDto> getNotifications(Long lastId, int size){
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
-        List<NotificationDto> dtos = new ArrayList<>();
-        List<Notification> notifications = notificationRepository.findAllByMemberIdOrderByInvitationFirst(member.getId());
+        Pageable pageable = PageRequest.of(0, size);
+        List<Notification> notifications = notificationRepository.findNextPageByMemberId(member.getId(), lastId, pageable);
 
+        List<NotificationDto> dtos = new ArrayList<>();
         for (Notification n : notifications){
             NotificationDto dto = NotificationDto.builder()
                     .content(n.getContent())

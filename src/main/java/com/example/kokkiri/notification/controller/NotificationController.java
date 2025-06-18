@@ -31,8 +31,10 @@ public class NotificationController {
 
     // 내 알림 리스트
     @GetMapping("/list")
-    public ResponseEntity<?> getMyNotifications(){
-        List<NotificationDto> notificationDtos = notificationService.getNotifications();
+    public ResponseEntity<?> getMyNotifications(
+            @RequestParam(required = false) Long lastId,
+            @RequestParam(defaultValue = "10") int size) {
+        List<NotificationDto> notificationDtos = notificationService.getNotifications(lastId, size);
         return new ResponseEntity<>(notificationDtos, HttpStatus.OK);
     }
 
