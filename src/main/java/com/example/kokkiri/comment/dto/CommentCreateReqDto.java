@@ -1,4 +1,4 @@
-package com.example.kokkiri.board.dto;
+package com.example.kokkiri.comment.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CommentCreateReqDto {
+    private Long boardId;
     private Long memberId;
     //    private Long parentId;
     private String comment;

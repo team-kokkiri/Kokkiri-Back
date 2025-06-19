@@ -1,8 +1,9 @@
-package com.example.kokkiri.board.repository;
+package com.example.kokkiri.comment.repository;
 
-import com.example.kokkiri.board.domain.Comment;
+import com.example.kokkiri.comment.domain.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
+
 
 }

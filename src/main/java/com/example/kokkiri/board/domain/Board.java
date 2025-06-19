@@ -1,5 +1,6 @@
 package com.example.kokkiri.board.domain;
 
+import com.example.kokkiri.comment.domain.Comment;
 import com.example.kokkiri.common.domain.BaseTimeEntity;
 import com.example.kokkiri.member.domain.Member;
 import jakarta.persistence.*;
@@ -57,14 +58,10 @@ public class Board extends BaseTimeEntity {
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     private List<BoardFile> boardFiles = new ArrayList<>();
 
-
+    // 게시글 수정
     public void update(String title, String content) {
         this.boardTitle = title;
         this.boardContent = content;
     }
-
-//    public void softDelete() {
-//        this.delYn = "Y";
-//    }
 
 }
