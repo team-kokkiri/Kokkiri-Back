@@ -2,15 +2,16 @@ package com.example.kokkiri.board.service;
 
 import com.example.kokkiri.board.domain.Board;
 import com.example.kokkiri.board.domain.BoardType;
-import com.example.kokkiri.board.dto.BoardCreateReqDto;
-import com.example.kokkiri.board.dto.BoardDetailResDto;
-import com.example.kokkiri.board.dto.BoardUpdateReqDto;
+import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
 import com.example.kokkiri.member.domain.Member;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -99,5 +100,33 @@ public class BoardService {
         boardRepository.delete(board);
     }
 
+    // 페이징 처리
+    public BoardPageResDto getBoardPage(Long typeId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
 
+        Page<Board> boardPage = (typeId == 3L)
+                ? boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(typeId, "N", pageable)
+                : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
+        List<BoardListResDto> boardListResDtos = boardPage.getContent().stream()
+                .map(board -> new BoardListResDto(
+                        board.getId(),
+                        board.getBoardTitle(),
+                        board.getBoardContent(),
+                        board.getMember().getNickname(),
+                        board.getLikeCount(),
+                        board.getBoardComments().size(),
+                        board.getCreatedTime(),
+                        board.getBoardType().getTypeName()
+                ))
+                .toList();
+
+        return new BoardPageResDto(
+                boardListResDtos,
+                boardPage.getNumber(),
+                boardPage.getTotalPages(),
+                boardPage.getTotalElements(),
+                boardPage.isLast()
+        );
+    }
 }
