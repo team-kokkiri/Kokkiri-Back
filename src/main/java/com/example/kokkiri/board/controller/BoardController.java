@@ -1,13 +1,11 @@
 package com.example.kokkiri.board.controller;
 
 import com.example.kokkiri.board.domain.Board;
-import com.example.kokkiri.board.dto.BoardCreateReqDto;
-import com.example.kokkiri.board.dto.BoardDetailResDto;
-import com.example.kokkiri.board.dto.BoardListResDto;
-import com.example.kokkiri.board.dto.BoardUpdateReqDto;
+import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -81,5 +79,18 @@ public class BoardController {
         boardService.softDeleteBoard(boardId, member);
         return ResponseEntity.ok(boardId);
     }
+
+    // 페이징 게시글 리스트 조회
+    @GetMapping("/list/{typeId}/{page}")
+    public ResponseEntity<BoardPageResDto> getBoardPage(
+            @PathVariable Long typeId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Pageable pageable) {
+
+        BoardPageResDto boardPage = boardService.getBoardPage(typeId, page, size);
+        return ResponseEntity.ok(boardPage);
+    }
+
 
 }
