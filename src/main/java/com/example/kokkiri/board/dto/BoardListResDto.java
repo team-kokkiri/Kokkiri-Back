@@ -16,4 +16,5 @@ public class BoardListResDto {
     private int commentCount;
     private LocalDateTime CreatedAt;
     private String boardTypes;
+//    private String thumbnailUrl;
 }

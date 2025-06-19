@@ -1,11 +1,14 @@
 package com.example.kokkiri.board.service;
 
 import com.example.kokkiri.board.domain.Board;
+import com.example.kokkiri.board.domain.BoardFile;
 import com.example.kokkiri.board.domain.BoardType;
 import com.example.kokkiri.board.dto.*;
+import com.example.kokkiri.board.repository.BoardFileRepository;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
+import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,9 +29,11 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final BoardTypeRepository boardTypeRepository;
+    private final BoardFileRepository boardFileRepository;
+    private final FileService fileService;
 
     // 게시글 작성
-    public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member) {
+    public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member, List<MultipartFile> files) {
         BoardType boardType = boardTypeRepository.findById(boardCreateReqDto.getBoardTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
 
@@ -38,7 +44,15 @@ public class BoardService {
                 .boardContent(boardCreateReqDto.getBoardContent())
                 .build();
 
-        return boardRepository.save(board);
+        boardRepository.save(board);
+
+        if (files != null) {
+            for (MultipartFile file : files) {
+                BoardFile boardFile = fileService.saveFile(file, member, board);
+                boardFileRepository.save(boardFile);
+            }
+        }
+        return board;
     }
 
     // 자유게시판
@@ -66,6 +80,11 @@ public class BoardService {
                 ))
                 .collect(Collectors.toList());
 
+        // 파일 URL 생성
+        List<String> fileUrls = board.getBoardFiles().stream()
+                .map(file -> "/api/files/" + file.getSavedName())
+                .toList();
+
         return BoardDetailResDto.builder()
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
@@ -75,6 +94,7 @@ public class BoardService {
                 .commentCount(board.getBoardComments().size())
                 .boardCreatedAt(board.getCreatedTime())
                 .comments(boardComments)
+                .fileUrls(fileUrls)
                 .build();
     }
 

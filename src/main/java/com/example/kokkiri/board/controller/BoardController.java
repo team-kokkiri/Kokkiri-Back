@@ -6,9 +6,11 @@ import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,17 +21,21 @@ public class BoardController {
 
     private final BoardService boardService;
 
-    // 게시글 작성
-
     /**
      * @AuthenticationPrincipal: Authentication 객체 안에 들어있는 principal을 직접 꺼내주는 어노테이션
      * 현재 로그인한 사용자의 정보를 컨트롤러 메서드의 파라미터로 주입할 때 사용
      * 내부적으로 SecurityContextHolder.getContext().getAuthentication().getPrincipal()과 동일
+     * =============
+     * @RequestBody : application/json | JSON만 허용
+     * @RequestPart: multipart/form-data | JSON + 파일
      */
-    @PostMapping
+    // 게시글 작성
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createBoard(@AuthenticationPrincipal Member member,
-                                         @RequestBody BoardCreateReqDto boardCreateReqDto) {
-        Board board = boardService.createBoard(boardCreateReqDto, member);
+                                         @RequestPart("board") BoardCreateReqDto boardCreateReqDto,
+                                         @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        Board board = boardService.createBoard(boardCreateReqDto, member, files);
+
         return ResponseEntity.ok(board.getId());
     }
 

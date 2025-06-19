@@ -20,4 +20,5 @@ public class BoardDetailResDto {
     private int commentCount;
     private LocalDateTime boardCreatedAt;
     private List<CommentListResDto> comments;
+    private List<String> fileUrls;
 }

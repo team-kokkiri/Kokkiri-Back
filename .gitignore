@@ -39,4 +39,7 @@ out/
 ### macOS ###
 .DS_Store
 
+### file upload ###
+/uploads/
+
 src/main/resources/application.yml
