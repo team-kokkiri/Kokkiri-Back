@@ -11,11 +11,13 @@ import java.util.Map;
 public class CustomOAuth2User implements OAuth2User {
 
     private final Map<String, Object> attributes;
+    private final String name; // Spring Security가 내부적으로 쓰는 고유 ID
     private final String email;
 
-    public CustomOAuth2User(Map<String, Object> attributes) {
+    public CustomOAuth2User(Map<String, Object> attributes, String name, String email) {
         this.attributes = attributes;
-        this.email = (String) attributes.get("email");
+        this.name = name;
+        this.email = email;
     }
 
     @Override
@@ -30,7 +32,7 @@ public class CustomOAuth2User implements OAuth2User {
 
     @Override
     public String getName() {
-        return email;
+        return name; // 절대 null이 아니어야 함 (고유 식별자)
     }
 
     public String getEmail() {

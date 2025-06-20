@@ -67,6 +67,8 @@ public class EmailService {
         String codeKey = getCodeKey(email, type);
         String savedCode = redisTemplate.opsForValue().get(codeKey);
 
+        log.info("[이메일 인증 검증] email: {}, type: {}, 입력코드: {}, 저장코드: {}", email, type, inputCode, savedCode);
+
         if (savedCode == null || !savedCode.equals(inputCode)) {
             return false;
         }

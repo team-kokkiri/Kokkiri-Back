@@ -24,8 +24,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
 
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        String email = oAuth2User.getAttribute("email");
+        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal(); //다운캐스팅
+        String email = oAuth2User.getEmail();
 
         // JWT 토큰 생성
         String role = "ROLE_USER";

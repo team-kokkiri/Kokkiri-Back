@@ -30,6 +30,12 @@ public class MemberService {
         Team team = teamRepository.findByTeamCode(request.getTeamCode())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지않은 팀코드입니다."));
 
+        String nickname = request.getNickname();
+        if (nickname == null || nickname.isBlank()) {
+            nickname = "Kosa" + ((int)(Math.random() * 100) + 1); // 랜덤 1~100
+        }
+
+
         Member member = Member.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
