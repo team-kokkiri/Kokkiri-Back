@@ -2,7 +2,9 @@ package com.example.kokkiri.member.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Setter
 @Getter
 @NoArgsConstructor
 public class MemberSignupReqDto {
