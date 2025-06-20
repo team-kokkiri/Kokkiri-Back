@@ -13,8 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BoardFile extends BaseTimeEntity{
-    // 안냐세요
+public class BoardFile extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -32,7 +31,7 @@ public class BoardFile extends BaseTimeEntity{
     private Long fileSize;
 
     @Column(nullable = false, length = 100)
-    private String contentType;
+    private String fileType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)

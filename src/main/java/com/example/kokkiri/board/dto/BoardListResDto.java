@@ -1,12 +1,14 @@
 package com.example.kokkiri.board.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
+@Builder
 public class BoardListResDto {
     private Long id;
     private String boardTitle;
@@ -16,4 +18,5 @@ public class BoardListResDto {
     private int commentCount;
     private LocalDateTime CreatedAt;
     private String boardTypes;
+    private String thumbnailUrl;
 }

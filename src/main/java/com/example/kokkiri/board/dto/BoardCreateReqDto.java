@@ -12,5 +12,4 @@ public class BoardCreateReqDto {
     private Long boardTypeId;
     private String boardTitle;
     private String boardContent;
-    // 첨부파일
 }
