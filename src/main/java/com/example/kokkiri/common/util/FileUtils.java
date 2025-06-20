@@ -39,15 +39,11 @@ public class FileUtils {
             }
             File savedFile = new File(uploadDir, savedName);
             file.transferTo(savedFile); // 파일 저장
-            
+
             return savedFile.getAbsolutePath(); // 저장 경로 반환
         } catch (Exception e) {
             throw new RuntimeException("파일 저장 실패: " + e.getMessage(), e);
         }
     }
 
-
-//    public static String generateThumbnailFileName(String originalFileName) {
-//        return "t_" + UUID.randomUUID().toString() + originalFileName.substring(originalFileName.lastIndexOf("."));
-//    }
 }
