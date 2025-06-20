@@ -2,14 +2,21 @@ package com.example.kokkiri.member.service;
 
 import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.dto.MemberLoginReqDto;
+import com.example.kokkiri.member.dto.MemberSearchResDto;
 import com.example.kokkiri.member.dto.MemberSignupReqDto;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.team.domain.Team;
 import com.example.kokkiri.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -76,6 +83,24 @@ public class MemberService {
         String verifiedKey = "email:verified:reset:" + email;
         emailService.deleteVerifiedKey(verifiedKey);
     }
+
+    public List<MemberSearchResDto> searchMember(String keyword, Long lastId, int size){
+        Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "id"));
+        List<Member> members = memberRepository.searchByKeyword(keyword, lastId, pageable);
+        List<MemberSearchResDto> dtos = new ArrayList<>();
+
+        for (Member m : members){
+            MemberSearchResDto dto = MemberSearchResDto.builder()
+                    .memberId(m.getId())
+                    .nickname(m.getNickname())
+                    .email(m.getEmail())
+                    .build();
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+
+
 }
 
 

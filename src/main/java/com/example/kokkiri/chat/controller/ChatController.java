@@ -80,8 +80,8 @@ public class ChatController {
 
     // 채팅방 초대
     @PostMapping("/room/group/{roomId}/invite")
-    public ResponseEntity<?> inviteMember(@PathVariable Long roomId, @RequestParam String invitedMemberInfo){
-        chatService.inviteMember(roomId, invitedMemberInfo);
+    public ResponseEntity<?> inviteMember(@PathVariable Long roomId, @RequestParam Long memberId){
+        chatService.inviteMember(roomId, memberId);
         return ResponseEntity.ok().build();
     }
 

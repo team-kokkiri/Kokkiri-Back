@@ -5,6 +5,7 @@ import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,12 @@ public class BoardController {
     private final BoardService boardService;
 
     // 게시글 작성
+
+    /**
+     * @AuthenticationPrincipal: Authentication 객체 안에 들어있는 principal을 직접 꺼내주는 어노테이션
+     * 현재 로그인한 사용자의 정보를 컨트롤러 메서드의 파라미터로 주입할 때 사용
+     * 내부적으로 SecurityContextHolder.getContext().getAuthentication().getPrincipal()과 동일
+     */
     @PostMapping
     public ResponseEntity<?> createBoard(@AuthenticationPrincipal Member member,
                                          @RequestBody BoardCreateReqDto boardCreateReqDto) {
@@ -50,34 +57,40 @@ public class BoardController {
     }
 
     // 게시글 상세조회
-    @GetMapping("/detail/{id}")
-    public ResponseEntity<BoardDetailResDto> getBoardDetail(@PathVariable Long id) {
-        BoardDetailResDto boardDetailResDto = boardService.findBoardDetail(id);
+    @GetMapping("/detail/{boardId}")
+    public ResponseEntity<BoardDetailResDto> getBoardDetail(@PathVariable Long boardId) {
+        BoardDetailResDto boardDetailResDto = boardService.findBoardDetail(boardId);
         return ResponseEntity.ok(boardDetailResDto);
     }
 
     // 게시글 수정
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateBoard(@PathVariable Long id,
+    @PutMapping("/{boardId}")
+    public ResponseEntity<?> updateBoard(@PathVariable Long boardId,
                                          @AuthenticationPrincipal Member member,
                                          @RequestBody BoardUpdateReqDto boardUpdateReqDto) {
-        boardService.updateBoard(id, member, boardUpdateReqDto);
+        boardService.updateBoard(boardId, member, boardUpdateReqDto);
         return ResponseEntity.ok(boardUpdateReqDto);
     }
 
     // 게시글 삭제
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteBoard(@AuthenticationPrincipal Member member,
-                                         @PathVariable Long id) {
-        boardService.softDeleteBoard(id, member);
-        return ResponseEntity.ok(id);
+    @DeleteMapping("/{boardId}")
+    public ResponseEntity<?> deleteBoard(@PathVariable Long boardId,
+                                         @AuthenticationPrincipal Member member) {
+        boardService.softDeleteBoard(boardId, member);
+        return ResponseEntity.ok(boardId);
     }
 
-    // 댓글 작성
-    @PostMapping("/detail/{id}/comments")
-    public ResponseEntity<?> createComment(@PathVariable Long id, @RequestBody CommentCreateReqDto commentCreateReqDto) {
-        boardService.createComment(id, commentCreateReqDto);
-        return ResponseEntity.ok().build();
+    // 페이징 게시글 리스트 조회
+    @GetMapping("/list/{typeId}/{page}")
+    public ResponseEntity<BoardPageResDto> getBoardPage(
+            @PathVariable Long typeId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Pageable pageable) {
+
+        BoardPageResDto boardPage = boardService.getBoardPage(typeId, page, size);
+        return ResponseEntity.ok(boardPage);
     }
+
 
 }

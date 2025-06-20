@@ -288,18 +288,15 @@ public class ChatService {
         return newRoom.getId();
     }
 
-    public void inviteMember(Long roomId, String invitedMemberInfo){
+    public void inviteMember(Long roomId, Long memberId){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
 
         if (chatRoom.getIsGroupChat().equals("N")){
             throw new IllegalArgumentException("단체 채팅방이 아닙니다.");
         }
 
-        Member invitedMember = invitedMemberInfo.contains("@")
-                ? memberRepository.findByEmail(invitedMemberInfo)
-                .orElseThrow(() -> new EntityNotFoundException("해당 이메일의 유저를 찾을 수 없습니다."))
-                : memberRepository.findByNickname(invitedMemberInfo)
-                .orElseThrow(() -> new EntityNotFoundException("해당 닉네임의 유저를 찾을 수 없습니다."));
+        Member invitedMember = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 이메일의 유저를 찾을 수 없습니다."));
 
         boolean alreadyExists = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, invitedMember);
         if (alreadyExists) {

@@ -3,10 +3,7 @@ package com.example.kokkiri.member.controller;
 import com.example.kokkiri.common.jwt.JwtResponse;
 import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.common.jwt.RefreshTokenService;
-import com.example.kokkiri.member.dto.MemberInfoResDto;
-import com.example.kokkiri.member.dto.MemberLoginReqDto;
-import com.example.kokkiri.member.dto.MemberResetPasswordReqDto;
-import com.example.kokkiri.member.dto.MemberSignupReqDto;
+import com.example.kokkiri.member.dto.*;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.member.service.EmailService;
@@ -21,8 +18,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.time.Duration;
+import java.util.List;
+
 
 @Slf4j
 @RestController
@@ -198,5 +196,14 @@ public class MemberController {
                 return ResponseEntity.badRequest().body("유효하지 않은 팀 코드입니다.");
             }
         }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchMember(
+            @RequestParam String keyword,
+            @RequestParam(required = false) Long lastId,
+            @RequestParam(defaultValue = "10") int size) {
+
+        List<MemberSearchResDto> memberSearchResDtos = memberService.searchMember(keyword, lastId, size);
+        return new ResponseEntity<>(memberSearchResDtos, HttpStatus.OK);
     }
 }

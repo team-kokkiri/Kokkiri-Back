@@ -1,4 +1,4 @@
-package com.example.kokkiri.board.dto;
+package com.example.kokkiri.comment.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

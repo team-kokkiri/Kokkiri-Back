@@ -22,63 +22,33 @@ public class InitialDataLoader implements CommandLineRunner {
     @Autowired
     private TeamRepository teamRepository;
 
+    private void createTestUser(String email, String nickname, Role role, Team team) {
+        if (memberRepository.findByEmail(email).isEmpty()) {
+            memberRepository.save(Member.builder()
+                    .email(email)
+                    .password(passwordEncoder.encode("1234"))
+                    .nickname(nickname)
+                    .role(role)
+                    .team(team)
+                    .build());
+        }
+    }
     @Override
     public void run(String... args) throws Exception {
-        Team testTeam = null;
-        if (teamRepository.findByTeamCode("test").isEmpty()){
-            testTeam = Team.builder()
-                    .teamCode("test")
-                    .teamName("testTeam")
-                    .build();
-            teamRepository.save(testTeam);
+
+        Team testTeam = teamRepository.findByTeamCode("test")
+                .orElseGet(() -> teamRepository.save(Team.builder()
+                        .teamCode("test")
+                        .teamName("testTeam")
+                        .build()));
+
+        createTestUser("admin@naver.com", "admin", Role.ADMIN, testTeam);
+
+        for (int i = 1; i <= 30; i++) {
+            createTestUser("test" + i + "@naver.com", "test" + i, Role.USER, testTeam);
         }
 
 
-        // ADMIN 계정
-        if (memberRepository.findByEmail("admin@naver.com").isEmpty()) {
-            Member admin = Member.builder()
-                    .email("admin@naver.com")
-                    .password(passwordEncoder.encode("1234"))
-                    .nickname("admin")
-                    .role(Role.ADMIN)
-                    .team(testTeam)
-                    .build();
-            memberRepository.save(admin);
-        }
-
-        if (memberRepository.findByEmail("test1@naver.com").isEmpty()) {
-            Member test = Member.builder()
-                    .email("test1@naver.com")
-                    .password(passwordEncoder.encode("1234"))
-                    .nickname("test1")
-                    .role(Role.USER)
-                    .team(testTeam)
-                    .build();
-            memberRepository.save(test);
-        }
-
-
-        if (memberRepository.findByEmail("test2@naver.com").isEmpty()) {
-            Member test = Member.builder()
-                    .email("test2@naver.com")
-                    .password(passwordEncoder.encode("1234"))
-                    .nickname("test2")
-                    .role(Role.USER)
-                    .team(testTeam)
-                    .build();
-            memberRepository.save(test);
-        }
-
-        if (memberRepository.findByEmail("test3@naver.com").isEmpty()) {
-            Member test = Member.builder()
-                    .email("test3@naver.com")
-                    .password(passwordEncoder.encode("1234"))
-                    .nickname("test3")
-                    .role(Role.USER)
-                    .team(testTeam)
-                    .build();
-            memberRepository.save(test);
-        }
     }
 }
 

@@ -55,8 +55,7 @@ public class SecurityConfig {
                                 "/connect/**",
                                 "/api/email/**",
                                 "/oauth2/**",
-                                "/api/members/oauth2/success",
-                                "/api/boards/**"
+                                "/api/members/oauth2/success"
                         ).permitAll()
                         // 관리자만 접근 가능
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -69,7 +68,7 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)) // 사용자 정보 로드
                         .successHandler(oAuth2AuthenticationSuccessHandler())
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil,memberRepository),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, memberRepository),
                         UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

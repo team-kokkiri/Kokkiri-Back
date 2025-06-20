@@ -1,5 +1,6 @@
 package com.example.kokkiri.board.dto;
 
+import com.example.kokkiri.comment.dto.CommentListResDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
