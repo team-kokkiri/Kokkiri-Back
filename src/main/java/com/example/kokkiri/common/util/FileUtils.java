@@ -8,22 +8,29 @@ import java.util.UUID;
 public class FileUtils {
 
     /**
-     * UUID 사용 이유
+     * UUID 사용 이유:
      * 1. 파일 이름 중복 방지
-     * - 사용자가 cat.jpg, cat.pdf 같은 파일명을 여러 번 업로드하면, 기존 파일이 덮어쓰기 될 수 있음.
-     * - UUID를 붙이면 f0ab3a34-b2cf-4a7c-b739-fcf7f1cc4322.jpg처럼 유일한 이름이 생성되어 덮어쓰기를 방지.
+     * - 동일한 이름(cat.jpg 등)의 파일 업로드 시 덮어쓰기 방지
      * 2. 보안 강화
-     * - 사용자가 업로드한 파일 이름을 그대로 저장하면 내부 경로가 노출될 수 있음.
-     * - UUID로 변경 시 예측 불가능한 이름이 되므로, URL을 통한 무단 접근도 어려움.
-     * 3. 파일 이름 충돌 방지 (다중 사용자 환경)
-     * - 여러 사용자가 동시에 같은 이름의 파일을 업로드해도 충돌 없이 저장 가능.
+     * - 사용자가 지정한 원래 파일명을 노출하지 않음
+     * 3. 다중 사용자 환경에서의 충돌 방지
+     * - 같은 시점에 동일한 이름의 파일을 올려도 충돌 없음
+     *
+     * @param originalFileName 업로드된 원본 파일명
+     * @return 고유하게 변환된 저장용 파일명 (예: UUID.jpg)
      */
-    // 고유한 파일 이름 생성
     public static String generateFileName(String originalFileName) {
         return UUID.randomUUID().toString() + originalFileName.substring(originalFileName.lastIndexOf("."));
     }
 
-    // 파일 저장
+    /**
+     * 지정된 경로에 MultipartFile을 저장 -> 저장된 파일의 절대 경로를 반환
+     *
+     * @param file      MultipartFile 객체 (업로드된 실제 파일)
+     * @param uploadDir 파일 저장 경로 (디렉토리)
+     * @param savedName 저장할 파일명 (UUID 기반 파일명)
+     * @return 저장된 파일의 절대 경로
+     */
     public static String saveFile(MultipartFile file, String uploadDir, String savedName) {
         try {
             File dir = new File(uploadDir);
@@ -32,7 +39,7 @@ public class FileUtils {
             }
             File savedFile = new File(uploadDir, savedName);
             file.transferTo(savedFile); // 파일 저장
-
+            
             return savedFile.getAbsolutePath(); // 저장 경로 반환
         } catch (Exception e) {
             throw new RuntimeException("파일 저장 실패: " + e.getMessage(), e);
