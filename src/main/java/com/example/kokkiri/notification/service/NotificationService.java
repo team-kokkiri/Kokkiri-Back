@@ -5,6 +5,7 @@ import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.notification.domain.Notification;
 import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.dto.NotificationDto;
+import com.example.kokkiri.notification.dto.NotificationPageResDto;
 import com.example.kokkiri.notification.repository.EmitterRepository;
 import com.example.kokkiri.notification.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -112,6 +113,7 @@ public class NotificationService {
 
             if (data instanceof Notification notification) {
                 payload = NotificationDto.builder()
+                        .id(notification.getId())
                         .content(notification.getContent())
                         .url(notification.getUrl())
                         .notificationType(notification.getNotificationType())
@@ -165,16 +167,22 @@ public class NotificationService {
                 .build();
     }
 
-    public List<NotificationDto> getNotifications(Long lastId, int size){
+    public NotificationPageResDto getNotifications(Long lastId, int size){
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
-        Pageable pageable = PageRequest.of(0, size);
-        List<Notification> notifications = notificationRepository.findNextPageByMemberId(member.getId(), lastId, pageable);
+        Long memberId = member.getId();
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<Notification> notifications = notificationRepository.findNextPageByMemberId(memberId, lastId, pageable);
 
+        boolean hasNext = notifications.size() > size; // 요청한 size보다 많으면 다음 페이지가 있다는 의미
+        if (hasNext) {
+            notifications.remove(size); // 다음 페이지 유무 확인용으로 가져온 1개는 제거
+        }
         List<NotificationDto> dtos = new ArrayList<>();
         for (Notification n : notifications){
             NotificationDto dto = NotificationDto.builder()
+                    .id(n.getId())
                     .content(n.getContent())
                     .url(n.getUrl())
                     .notificationType(n.getNotificationType())
@@ -183,8 +191,13 @@ public class NotificationService {
                     .build();
             dtos.add(dto);
         }
+        Long newLastId = null;
+        if (!dtos.isEmpty()) {
+            newLastId = dtos.get(dtos.size() - 1).getId();
+        }
 
-        return dtos;
+        Long totalUnreadCount = notificationRepository.countByReceiverIdAndDelYnAndIsRead(memberId, "N", "N");
+        return new NotificationPageResDto(dtos, hasNext, newLastId, totalUnreadCount);
     }
 
     public void deleteNotification(Long notificationId){

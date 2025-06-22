@@ -28,5 +28,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Pageable pageable
     );
 
+    Long countByReceiverIdAndDelYnAndIsRead(Long memberId, String delYn, String isRead);
+
 
 }

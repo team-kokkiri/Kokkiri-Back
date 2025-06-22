@@ -3,6 +3,7 @@ package com.example.kokkiri.notification.controller;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
 import com.example.kokkiri.notification.domain.Notification;
 import com.example.kokkiri.notification.dto.NotificationDto;
+import com.example.kokkiri.notification.dto.NotificationPageResDto;
 import com.example.kokkiri.notification.service.NotificationService;
 import org.hibernate.annotations.Parameter;
 import org.springframework.http.HttpStatus;
@@ -34,8 +35,8 @@ public class NotificationController {
     public ResponseEntity<?> getMyNotifications(
             @RequestParam(required = false) Long lastId,
             @RequestParam(defaultValue = "10") int size) {
-        List<NotificationDto> notificationDtos = notificationService.getNotifications(lastId, size);
-        return new ResponseEntity<>(notificationDtos, HttpStatus.OK);
+        NotificationPageResDto response = notificationService.getNotifications(lastId, size);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     // 알림 삭제

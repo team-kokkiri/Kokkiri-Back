@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 public class NotificationDto {
+    private Long id;
     private String content;
     private String url;
     private NotificationType notificationType;
