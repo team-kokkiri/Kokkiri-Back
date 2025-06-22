@@ -35,6 +35,10 @@ public class Comment extends BaseTimeEntity {
     @Column(nullable = false)
     private String commentContent;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer likeCount = 0;
+
     @Column(nullable = false, length = 1)
     @Builder.Default
     private String delYn = "N";
@@ -42,5 +46,10 @@ public class Comment extends BaseTimeEntity {
     // 댓글 수정
     public void update(String newContent) {
         this.commentContent = newContent;
+    }
+
+    // 댓글 좋아요
+    public void increaseLikeCount() {
+        this.likeCount += 1;
     }
 }
