@@ -5,13 +5,16 @@ import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.notification.domain.Notification;
 import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.dto.NotificationDto;
+import com.example.kokkiri.notification.dto.NotificationPageResDto;
 import com.example.kokkiri.notification.repository.EmitterRepository;
 import com.example.kokkiri.notification.repository.NotificationRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -75,8 +78,17 @@ public class NotificationService {
                 emitterRepository.deleteById(emitterId);
             });
 
-            // 최초 연결 메세지 전송
-            sendToClient(sseEmitter, emitterId, "EventStream Created. [memberId=" + memberId + "]");
+            // 최초 연결 메세지를 '데이터'가 아닌 '주석'으로 전송
+            // 이렇게 하면 클라이언트의 sse 이벤트 리스너가 트리거되지 않아 JSON 파싱 오류가 발생하지 않음
+            try {
+                sseEmitter.send(SseEmitter.event()
+                        .comment("EventStream Connected. [memberId=" + memberId + "]"));
+                System.out.println("✅ [SSE 연결 주석 전송 완료] emitterId: " + emitterId);
+            } catch (IOException e) {
+                System.out.println("❌ [SSE 연결 주석 전송 실패] emitterId: " + emitterId + ", 이유: " + e.getMessage());
+                emitterRepository.deleteById(emitterId);
+            }
+
 
             // lastEventId가 있으면, 유실된 이벤트를 찾아 다시 전송
             if (!lastEventId.isEmpty()) {
@@ -101,6 +113,7 @@ public class NotificationService {
 
             if (data instanceof Notification notification) {
                 payload = NotificationDto.builder()
+                        .id(notification.getId())
                         .content(notification.getContent())
                         .url(notification.getUrl())
                         .notificationType(notification.getNotificationType())
@@ -109,18 +122,19 @@ public class NotificationService {
                         .build();
             }
 
+
             emitter.send(SseEmitter.event()
                     .id(emitterId)
                     .name("sse")
-                    .data(payload));
+                    .data(payload, MediaType.APPLICATION_JSON));
 
             System.out.println("✅[SSE 전송 완료] emitterId: " + emitterId + ", data: " + payload);
 
         } catch (IOException exception) {
             // 전송 실패시 emitter 제거
             System.out.println("❌[SSE 전송 실패] emitterId: " + emitterId + ", 이유: " + exception.getMessage());
+            emitter.completeWithError(exception);
             emitterRepository.deleteById(emitterId);
-            throw new RuntimeException("SSE 연결 오류!" ,exception);
         }
     }
 
@@ -132,8 +146,13 @@ public class NotificationService {
         Map<String, SseEmitter> sseEmitters = emitterRepository.findAllEmitterStartWithByMemberId(memberId);
         sseEmitters.forEach(
                 (key, emitter) -> {
-                    emitterRepository.saveEventCache(key, notification);
-                    sendToClient(emitter, key, notification);
+                    try {
+                        emitterRepository.saveEventCache(key, notification);
+                        sendToClient(emitter, key, notification);
+                    } catch (Exception e) {
+                        // 하나 실패해도 다른 emitter는 계속 전송되도록
+                        System.out.println("❌ emitter 전송 중 일부 실패: " + key + ", 이유: " + e.getMessage());
+                    }
                 }
         );
     }
@@ -148,16 +167,22 @@ public class NotificationService {
                 .build();
     }
 
-    public List<NotificationDto> getNotifications(Long lastId, int size){
+    public NotificationPageResDto getNotifications(Long lastId, int size){
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
-        Pageable pageable = PageRequest.of(0, size);
-        List<Notification> notifications = notificationRepository.findNextPageByMemberId(member.getId(), lastId, pageable);
+        Long memberId = member.getId();
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<Notification> notifications = notificationRepository.findNextPageByMemberId(memberId, lastId, pageable);
 
+        boolean hasNext = notifications.size() > size; // 요청한 size보다 많으면 다음 페이지가 있다는 의미
+        if (hasNext) {
+            notifications.remove(size); // 다음 페이지 유무 확인용으로 가져온 1개는 제거
+        }
         List<NotificationDto> dtos = new ArrayList<>();
         for (Notification n : notifications){
             NotificationDto dto = NotificationDto.builder()
+                    .id(n.getId())
                     .content(n.getContent())
                     .url(n.getUrl())
                     .notificationType(n.getNotificationType())
@@ -166,8 +191,13 @@ public class NotificationService {
                     .build();
             dtos.add(dto);
         }
+        Long newLastId = null;
+        if (!dtos.isEmpty()) {
+            newLastId = dtos.get(dtos.size() - 1).getId();
+        }
 
-        return dtos;
+        Long totalUnreadCount = notificationRepository.countByReceiverIdAndDelYnAndIsRead(memberId, "N", "N");
+        return new NotificationPageResDto(dtos, hasNext, newLastId, totalUnreadCount);
     }
 
     public void deleteNotification(Long notificationId){
