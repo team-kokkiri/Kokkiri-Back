@@ -7,11 +7,13 @@ import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.dto.NotificationDto;
 import com.example.kokkiri.notification.repository.EmitterRepository;
 import com.example.kokkiri.notification.repository.NotificationRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -75,8 +77,17 @@ public class NotificationService {
                 emitterRepository.deleteById(emitterId);
             });
 
-            // 최초 연결 메세지 전송
-            sendToClient(sseEmitter, emitterId, "EventStream Created. [memberId=" + memberId + "]");
+            // 최초 연결 메세지를 '데이터'가 아닌 '주석'으로 전송
+            // 이렇게 하면 클라이언트의 sse 이벤트 리스너가 트리거되지 않아 JSON 파싱 오류가 발생하지 않음
+            try {
+                sseEmitter.send(SseEmitter.event()
+                        .comment("EventStream Connected. [memberId=" + memberId + "]"));
+                System.out.println("✅ [SSE 연결 주석 전송 완료] emitterId: " + emitterId);
+            } catch (IOException e) {
+                System.out.println("❌ [SSE 연결 주석 전송 실패] emitterId: " + emitterId + ", 이유: " + e.getMessage());
+                emitterRepository.deleteById(emitterId);
+            }
+
 
             // lastEventId가 있으면, 유실된 이벤트를 찾아 다시 전송
             if (!lastEventId.isEmpty()) {
@@ -109,18 +120,19 @@ public class NotificationService {
                         .build();
             }
 
+
             emitter.send(SseEmitter.event()
                     .id(emitterId)
                     .name("sse")
-                    .data(payload));
+                    .data(payload, MediaType.APPLICATION_JSON));
 
             System.out.println("✅[SSE 전송 완료] emitterId: " + emitterId + ", data: " + payload);
 
         } catch (IOException exception) {
             // 전송 실패시 emitter 제거
             System.out.println("❌[SSE 전송 실패] emitterId: " + emitterId + ", 이유: " + exception.getMessage());
+            emitter.completeWithError(exception);
             emitterRepository.deleteById(emitterId);
-            throw new RuntimeException("SSE 연결 오류!" ,exception);
         }
     }
 
@@ -132,8 +144,13 @@ public class NotificationService {
         Map<String, SseEmitter> sseEmitters = emitterRepository.findAllEmitterStartWithByMemberId(memberId);
         sseEmitters.forEach(
                 (key, emitter) -> {
-                    emitterRepository.saveEventCache(key, notification);
-                    sendToClient(emitter, key, notification);
+                    try {
+                        emitterRepository.saveEventCache(key, notification);
+                        sendToClient(emitter, key, notification);
+                    } catch (Exception e) {
+                        // 하나 실패해도 다른 emitter는 계속 전송되도록
+                        System.out.println("❌ emitter 전송 중 일부 실패: " + key + ", 이유: " + e.getMessage());
+                    }
                 }
         );
     }

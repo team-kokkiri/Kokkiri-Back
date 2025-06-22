@@ -179,24 +179,6 @@ public class MemberController {
         }
     }
 
-    @RestController
-    @RequestMapping("/api/team")
-    @RequiredArgsConstructor
-    public class TeamController {
-
-        private final TeamRepository teamRepository;
-
-        // 팀 코드 존재 여부 확인
-        @GetMapping("/verify")
-        public ResponseEntity<?> verifyTeamCode(@RequestParam String code) {
-            boolean exists = teamRepository.findByTeamCode(code).isPresent();
-            if (exists) {
-                return ResponseEntity.ok().body("팀 코드가 유효합니다.");
-            } else {
-                return ResponseEntity.badRequest().body("유효하지 않은 팀 코드입니다.");
-            }
-        }
-
     @GetMapping("/search")
     public ResponseEntity<?> searchMember(
             @RequestParam String keyword,
@@ -206,4 +188,5 @@ public class MemberController {
         List<MemberSearchResDto> memberSearchResDtos = memberService.searchMember(keyword, lastId, size);
         return new ResponseEntity<>(memberSearchResDtos, HttpStatus.OK);
     }
+
 }
