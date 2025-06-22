@@ -2,14 +2,18 @@ package com.example.kokkiri.board.service;
 
 import com.example.kokkiri.board.domain.Board;
 import com.example.kokkiri.board.domain.BoardFile;
+import com.example.kokkiri.board.domain.BoardLike;
 import com.example.kokkiri.board.domain.BoardType;
 import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.repository.BoardFileRepository;
+import com.example.kokkiri.board.repository.BoardLikeRepository;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.repository.MemberRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +35,8 @@ public class BoardService {
     private final BoardTypeRepository boardTypeRepository;
     private final BoardFileRepository boardFileRepository;
     private final FileService fileService;
+    private final MemberRepository memberRepository;
+    private final BoardLikeRepository boardLikeRepository;
 
     // 게시글 작성
 
@@ -154,6 +160,33 @@ public class BoardService {
         }
         boardRepository.delete(board);
     }
+
+    // 게시글 좋아요
+    public void likeBoard(Long boardId, Long memberId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new EntityNotFoundException("게시글을 찾을 수 없습니다"));
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("회원 정보를 찾을 수 없습니다"));
+
+        // 이미 좋아요 했는지 확인
+        boolean alreadyLiked = boardLikeRepository.existsByBoardAndMember(board, member);
+        if (alreadyLiked) {
+            throw new IllegalStateException("이미 좋아요를 누르셨습니다.");
+        }
+
+        // 좋아요 저장
+        BoardLike boardLike = BoardLike.builder()
+                .board(board)
+                .member(member)
+                .build();
+
+        boardLikeRepository.save(boardLike);
+
+        // 게시글 좋아요 수 증가
+        board.increaseLikeCount();
+    }
+
 
     // 페이징 처리
     public BoardPageResDto getBoardPage(Long typeId, int page, int size) {

@@ -98,6 +98,14 @@ public class BoardController {
         return ResponseEntity.ok(boardId);
     }
 
+    // 게시글 좋아요
+    @PostMapping("/{boardId}/like")
+    public ResponseEntity<?> likeBoard(@PathVariable Long boardId,
+                                       @AuthenticationPrincipal Member member) {
+        boardService.likeBoard(boardId, member.getId());
+        return ResponseEntity.ok().build();
+    }
+
     // 페이징 게시글 리스트 조회
     @GetMapping("/list/{typeId}/{page}")
     public ResponseEntity<BoardPageResDto> getBoardPage(@PathVariable Long typeId,

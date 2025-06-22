@@ -64,4 +64,9 @@ public class Board extends BaseTimeEntity {
         this.boardContent = content;
     }
 
+    // 게시글 좋아요
+    public void increaseLikeCount() {
+        this.likeCount += 1;
+    }
+
 }

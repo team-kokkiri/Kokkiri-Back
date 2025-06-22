@@ -44,4 +44,12 @@ public class CommentController {
         return ResponseEntity.ok().build();
     }
 
+    // 댓글 좋아요
+    @PostMapping("/{commentId}/like")
+    public ResponseEntity<?> likeComment(@PathVariable Long commentId,
+                                         @AuthenticationPrincipal Member member) {
+        commentService.likeComment(commentId, member.getId());
+        return ResponseEntity.ok().build();
+    }
+
 }

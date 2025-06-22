@@ -3,10 +3,14 @@ package com.example.kokkiri.comment.service;
 import com.example.kokkiri.board.domain.Board;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.comment.domain.Comment;
+import com.example.kokkiri.comment.domain.CommentLike;
 import com.example.kokkiri.comment.dto.CommentCreateReqDto;
 import com.example.kokkiri.comment.dto.CommentUpdateReqDto;
+import com.example.kokkiri.comment.repository.CommentLikeRepository;
 import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.repository.MemberRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +23,8 @@ public class CommentService {
 
     private final BoardRepository boardRepository;
     private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
+    private final MemberRepository memberRepository;
 
     // 댓글 작성
     public Comment createComment(Long boardId, Member member, CommentCreateReqDto commentCreateReqDto) {
@@ -52,6 +58,30 @@ public class CommentService {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
         commentRepository.delete(comment);
+    }
+
+    // 댓글 좋아요
+    public void likeComment(Long commentId, Long memberId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("댓글을 찾을 수 없습니다."));
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("회원 정보를 찾을 수 없습니다"));
+
+        // 이미 좋아요 했는지 확인
+        boolean alreadyLiked = commentLikeRepository.existsByCommentAndMember(comment, member);
+        if (alreadyLiked) {
+            throw new IllegalStateException("이미 좋아요를 누르셨습니다.");
+        }
+
+        CommentLike commentLike = CommentLike.builder()
+                .comment(comment)
+                .member(member)
+                .build();
+
+        commentLikeRepository.save(commentLike);
+
+        comment.increaseLikeCount();
     }
 
 }
