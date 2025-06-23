@@ -1,7 +1,6 @@
 package com.example.kokkiri.board.controller;
 
 import com.example.kokkiri.board.domain.Board;
-import com.example.kokkiri.board.domain.BoardFile;
 import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
@@ -41,42 +40,16 @@ public class BoardController {
     // 게시글 리스트조회
     @GetMapping("/list/{typeId}")
     public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
-
-        List<Board> boards = (typeId == 3L)
-                ? boardService.findPopularBoards(typeId) // BEST 게시판
-                : boardService.findBoardList(typeId); // 자유, 공지사항, 자료공유 게시판
-
-        List<BoardListResDto> boardListResDtos = boards.stream()
-                .map(board -> {
-                    String thumbnailUrl = board.getBoardFiles().stream()
-                            // "image/"로 시작하는 타입만 필터링
-                            .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
-                            // 조건을 통과한 이미지 파일 중 첫 번째 파일
-                            .findFirst()
-                            // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
-                            .map(BoardFile::getFilePath)
-                            .orElse(null);
-
-                    return new BoardListResDto(
-                            board.getId(),
-                            board.getBoardTitle(),
-                            board.getBoardContent(),
-                            board.getMember().getNickname(),
-                            board.getLikeCount(),
-                            board.getBoardComments().size(),
-                            board.getCreatedTime(),
-                            board.getBoardType().getTypeName(),
-                            thumbnailUrl
-                    );
-                })
-                .toList();
-        return ResponseEntity.ok(boardListResDtos);
+        List<BoardListResDto> result = (typeId == 3L)
+                ? boardService.getPopularBoardList(typeId)
+                : boardService.getBoardList(typeId);
+        return ResponseEntity.ok(result);
     }
 
     // 게시글 상세조회
     @GetMapping("/detail/{boardId}")
     public ResponseEntity<BoardDetailResDto> getBoardDetail(@PathVariable Long boardId) {
-        BoardDetailResDto boardDetailResDto = boardService.findBoardDetail(boardId);
+        BoardDetailResDto boardDetailResDto = boardService.getBoardDetail(boardId);
         return ResponseEntity.ok(boardDetailResDto);
     }
 

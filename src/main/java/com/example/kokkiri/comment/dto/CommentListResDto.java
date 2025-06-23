@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 public class CommentListResDto {
     private Long id;
     private Long memberId;
-    //    private Long parentId;
+    private Long parentId;
     private String comment;
+    private boolean isDeleted;
     private LocalDateTime commentCreatedAt;
 }
