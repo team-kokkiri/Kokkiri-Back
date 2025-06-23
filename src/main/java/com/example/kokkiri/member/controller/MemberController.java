@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -34,30 +35,52 @@ public class MemberController {
     private final RefreshTokenService refreshTokenService;
     private final StringRedisTemplate redisTemplate; //redis인증여부 확인용
     private final EmailService emailService;
+    private final TeamRepository teamRepository;
 
     //회원가입
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request){
+    public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request, HttpSession session) {
         String email = request.getEmail();
 
-        //이메일 중복 여부 확인
-        if(memberRepository.findByEmail(email).isPresent()){
+        log.info("회원가입 요청 들어옴: {}", request);
+
+        // 팀코드는 무조건 세션에서 가져오기 (request.getTeamCode() 사용하지 않음)
+        String teamCode = (String) session.getAttribute("teamCode");
+        if (teamCode == null || teamCode.isBlank()) {
+            log.warn("세션에 저장된 팀 코드가 없습니다.");
+            return ResponseEntity.badRequest().body("세션에 저장된 팀 코드가 없습니다.");
+        }
+
+        // 이메일 중복 여부 확인
+        if (memberRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 가입된 이메일입니다.");
         }
 
-        //유효성검사
-        if (request.getPassword().length() < 8) {
+        // 팀코드 유효성검사
+        if (teamRepository.findByTeamCode(teamCode).isEmpty()) {
+            return ResponseEntity.badRequest().body("유효하지 않은 팀코드 입니다.");
+        }
+
+        // 비밀번호 유효성 검사
+        if (request.getPassword() == null || request.getPassword().length() < 8) {
             return ResponseEntity.badRequest().body("비밀번호는 8자 이상이어야 합니다.");
         }
 
         // Redis에 회원 정보 임시 저장
         try {
             String key = "email:temp:signup:" + email;
-            // JSON 문자열로 저장 (간단히 ObjectMapper 사용)
             ObjectMapper objectMapper = new ObjectMapper();
-            String json = objectMapper.writeValueAsString(request);
-            redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(10)); //10분저장
+
+            MemberSignupReqDto dataToSave = new MemberSignupReqDto();
+            dataToSave.setEmail(email);
+            dataToSave.setPassword(request.getPassword());
+            dataToSave.setNickname(request.getNickname());
+            dataToSave.setTeamCode(teamCode); // 세션에서 읽은 teamCode
+
+            String json = objectMapper.writeValueAsString(dataToSave);
+            redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(10)); // 10분 저장
         } catch (Exception e) {
+            log.error("회원가입 정보 저장 중 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("회원가입 정보 저장 중 오류 발생");
         }
@@ -67,8 +90,8 @@ public class MemberController {
 
     //로그인
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request){
-        try{
+    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request) {
+        try {
             Member member = memberService.login(request);
             String role = member.getRole().name();
             String accessToken = jwtUtil.generateToken(member.getEmail(), role, true);
@@ -86,7 +109,7 @@ public class MemberController {
 
             // JwtResponse DTO를 JSON 형태로 응답
             return ResponseEntity.ok(jwtResponse);
-        }catch(IllegalArgumentException e){
+        } catch (IllegalArgumentException e) {
             System.out.println("로그인 실패: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
@@ -153,7 +176,7 @@ public class MemberController {
 
         System.out.println("리프레시 성공! 새 AccessToken 발급: " + newAccessToken);
 
-        return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken ,email));
+        return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken, email));
     }
 
     @PostMapping("/reset")
@@ -164,38 +187,20 @@ public class MemberController {
         if (!emailService.isEmailVerified(email, "reset")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("이메일 인증이 필요합니다.");
         }
-        try{
+        try {
             memberService.resetPassword(email, request.getNewPassword());
-            log.info("변경된 비밀번호: "+ request.getNewPassword());
+            log.info("변경된 비밀번호: " + request.getNewPassword());
             //인증정보삭제
             String VerifiedKey = "email:verified:reset:" + email;
             redisTemplate.delete(VerifiedKey);
 
 
             return ResponseEntity.ok("비밀번호가 성공적으로 재설정되었습니다!!");
-            }catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
 
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
-
-    @RestController
-    @RequestMapping("/api/team")
-    @RequiredArgsConstructor
-    public class TeamController {
-
-        private final TeamRepository teamRepository;
-
-        // 팀 코드 존재 여부 확인
-        @GetMapping("/verify")
-        public ResponseEntity<?> verifyTeamCode(@RequestParam String code) {
-            boolean exists = teamRepository.findByTeamCode(code).isPresent();
-            if (exists) {
-                return ResponseEntity.ok().body("팀 코드가 유효합니다.");
-            } else {
-                return ResponseEntity.badRequest().body("유효하지 않은 팀 코드입니다.");
-            }
-        }
 
     @GetMapping("/search")
     public ResponseEntity<?> searchMember(
@@ -207,3 +212,4 @@ public class MemberController {
         return new ResponseEntity<>(memberSearchResDtos, HttpStatus.OK);
     }
 }
+

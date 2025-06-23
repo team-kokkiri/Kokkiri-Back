@@ -2,51 +2,80 @@ package com.example.kokkiri.common.oauth;
 
 import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.common.jwt.RefreshTokenService;
+import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.team.domain.Team;
+import com.example.kokkiri.team.repository.TeamRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtUtil jwtUtil;
-    private final RefreshTokenService  refreshTokenService;
+    private final RefreshTokenService refreshTokenService;
+    private final MemberRepository memberRepository;
+    private final TeamRepository teamRepository;
 
-
-    //Oauth2로그인시 jwt토큰 생성
+    // Oauth2 로그인 시 JWT 토큰 생성 및 리다이렉트 처리
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
 
-        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal(); //다운캐스팅
+        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getEmail();
 
-        // JWT 토큰 생성
-        String role = "ROLE_USER";
-        String accessToken = jwtUtil.generateToken(email, role, true);
-        String refreshToken = jwtUtil.generateToken(email, role, false);
+        String teamCode = (String) request.getSession().getAttribute("teamCode");
+        if (teamCode == null || teamCode.isEmpty()) {
+            // 팀코드가 없으면 팀코드 입력 페이지로 리다이렉트
+            response.sendRedirect("http://localhost:8080/teamcode-verify");
+            return;
+        }
 
-        // 리프래시토큰 만료시간
-        long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
+        Optional<Team> optionalTeam = teamRepository.findByTeamCode(teamCode);
+        if (optionalTeam.isEmpty()) {
+            // 유효하지 않은 팀코드면 팀코드 입력 페이지로 리다이렉트
+            response.sendRedirect("http://localhost:8080/teamcode-verify");
+            return;
+        }
 
-        // Redis 저장
-        refreshTokenService.saveRefreshToken(email, refreshToken, refreshTokenExpiry);
+        Team team = optionalTeam.get();
+        Optional<Member> optionalMember = memberRepository.findByEmail(email);
 
-        // 로그
-        System.out.println("[OAuth2 로그인 성공] email = " + email);
-        System.out.println("AccessToken = " + accessToken);
-        System.out.println("RefreshToken = " + refreshToken);
+        if (optionalMember.isPresent()) {
+            // 기존 회원이면 로그인 처리 및 메인페이지로 리다이렉트
+            Member member = optionalMember.get();
 
-        // JWT 토큰을 응답 헤더에 추가
-        response.addHeader("Authorization", "Bearer " + accessToken);
+            if (member.getTeam() == null) {
+                member.setTeam(team);
+                memberRepository.save(member);
+            }
 
-        // 필요 시, 프론트로 리다이렉트 또는 응답 처리 (아래는 예시로 루트로 리다이렉트)
-        response.sendRedirect("http://localhost:3000/oauth2/success?token=" + accessToken);
+            String role = "ROLE_USER";
+            String accessToken = jwtUtil.generateToken(email, role, true);
+            String refreshToken = jwtUtil.generateToken(email, role, false);
+            long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
+
+            refreshTokenService.saveRefreshToken(email, refreshToken, refreshTokenExpiry);
+
+            // 토큰을 쿼리 파라미터로 전달
+            String redirectUrl = "http://localhost:8080/oauth2-redirect"
+                    + "?accessToken=" + accessToken
+                    + "&refreshToken=" + refreshToken
+                    + "&email=" + email;
+
+            response.sendRedirect(redirectUrl);
+            return;
+        }
+
+        // 신규 회원이면 회원가입(팀코드 입력) 페이지로 리다이렉트
+        response.sendRedirect("http://localhost:8080/teamcode-verify");
     }
 }

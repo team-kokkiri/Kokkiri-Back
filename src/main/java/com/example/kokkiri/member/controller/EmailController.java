@@ -5,6 +5,7 @@ import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.member.service.EmailService;
 import com.example.kokkiri.member.service.MemberService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -55,7 +56,9 @@ public class EmailController {
     @PostMapping("/verify")
     public ResponseEntity<String> verifyCode(@RequestParam String email,
                                              @RequestParam String code,
-                                             @RequestParam String type) {
+                                             @RequestParam String type,
+                                             HttpSession httpdSession) {
+
         boolean isValid = emailService.verifyCode(email, code, type);
 
         if (!isValid) {
@@ -80,7 +83,7 @@ public class EmailController {
                 MemberSignupReqDto signupDto = objectMapper.readValue(signupJson, MemberSignupReqDto.class);
 
                 // DB 저장
-                memberService.signup(signupDto);
+                memberService.signup(signupDto,httpdSession);
 
                 // Redis 키 정리
                 redisTemplate.delete(signupKey);    // 임시 가입 정보
