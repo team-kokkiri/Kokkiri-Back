@@ -10,11 +10,13 @@ import com.example.kokkiri.member.service.EmailService;
 import com.example.kokkiri.member.service.MemberService;
 import com.example.kokkiri.team.repository.TeamRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -90,27 +92,34 @@ public class MemberController {
 
     //로그인
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request) {
+    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto request, HttpServletResponse response) {
         try {
             Member member = memberService.login(request);
             String role = member.getRole().name();
             String accessToken = jwtUtil.generateToken(member.getEmail(), role, true);
             String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false);
 
-            // 리프레시 토큰 만료 시간 계산 후 Redis에 저장
+            // Redis에 리프레시 토큰 저장
             long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
             refreshTokenService.saveRefreshToken(member.getEmail(), refreshToken, refreshTokenExpiry);
 
-            JwtResponse jwtResponse = new JwtResponse(accessToken, refreshToken, member.getEmail());
+            // refreshToken을 HttpOnly, Secure 쿠키로 설정
+            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                    .httpOnly(true)
+                    .secure(true) // HTTPS 환경일 때 true로 설정
+                    .path("/")
+                    .maxAge(refreshTokenExpiry / 1000) // 밀리초 -> 초 변환
+                    .sameSite("Strict") // 필요에 따라 "Lax"로 변경 가능
+                    .build();
 
-            log.info("로그인 성공: {}", member.getEmail());
-            log.info("액세스 토큰 발급: {}", accessToken);
-            log.info("리프레시 토큰 발급: {}", refreshToken);
+            response.setHeader("Set-Cookie", cookie.toString());
 
-            // JwtResponse DTO를 JSON 형태로 응답
-            return ResponseEntity.ok(jwtResponse);
+            log.info(">>> refreshToken: " + refreshToken);
+            log.info(">>> 유효성 검사 결과: " + jwtUtil.validateToken(refreshToken));
+
+            // accessToken만 응답 바디에 포함 (refreshToken은 쿠키에 있음)
+            return ResponseEntity.ok(new JwtResponse(accessToken, null, member.getEmail()));
         } catch (IllegalArgumentException e) {
-            System.out.println("로그인 실패: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
@@ -130,7 +139,6 @@ public class MemberController {
 
         return ResponseEntity.ok("로그아웃 성공");
     }
-
 
     //토큰확인
     @GetMapping("/me")
@@ -155,8 +163,10 @@ public class MemberController {
 
     // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshAccessToken(@RequestHeader("Refresh-Token") String refreshToken) {
-        if (!jwtUtil.validateToken(refreshToken)) {
+    public ResponseEntity<?> refreshAccessToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+        System.out.println(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
+
+        if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token이 유효하지 않습니다.");
         }
 
@@ -167,18 +177,14 @@ public class MemberController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("저장된 Refresh token과 일치하지 않습니다.");
         }
 
-        // 새로운 access 토큰 발급
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
-        String role = member.getRole().name();
+        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true);
 
-        String newAccessToken = jwtUtil.generateToken(email, role, true);
-
-        System.out.println("리프레시 성공! 새 AccessToken 발급: " + newAccessToken);
-
-        return ResponseEntity.ok(new JwtResponse(newAccessToken, refreshToken, email));
+        return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email));
     }
-
+    
+    //비밀번호 재설정
     @PostMapping("/reset")
     public ResponseEntity<String> resetPassword(@RequestBody MemberResetPasswordReqDto request) {
         String email = request.getEmail();

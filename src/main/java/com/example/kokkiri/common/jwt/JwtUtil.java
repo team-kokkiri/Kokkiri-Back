@@ -45,18 +45,31 @@ public class JwtUtil {
     // 토큰 유효성 검사
     public boolean validateToken(String token) {
         try {
-            getClaims(token);
+            Jwts.parser()
+                    .setSigningKey(jwtProperties.getSecretKey())
+                    .parseClaimsJws(token);  // 여기서 예외 발생하면 false 반환
             return true;
         } catch (ExpiredJwtException e) {
-            System.out.println("Token expired");
+            // 토큰 만료
+            System.out.println("[validateToken] 만료된 토큰: " + e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            // 지원하지 않는 형식
+            System.out.println("[validateToken] 지원하지 않는 토큰 형식: " + e.getMessage());
         } catch (MalformedJwtException e) {
-            System.out.println("Malformed token");
-        } catch (Exception e) {
-            System.out.println("Invalid token");
+            // 구조가 비정상적
+            System.out.println("[validateToken] 잘못된 토큰: " + e.getMessage());
+        } catch (SignatureException e) {
+            // 서명 오류
+            System.out.println("[validateToken] 시그니처 오류: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // 빈 값 등
+            System.out.println("[validateToken] 잘못된 인자: " + e.getMessage());
         }
+
         return false;
     }
-    
+
+
     //리프래시토큰이 언제 만료되는지 알기 위한 시간 저장
     public long getExpiration(String token) {
         return getClaims(token).getExpiration().getTime() - System.currentTimeMillis();
