@@ -8,6 +8,7 @@ import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.team.domain.Team;
 import com.example.kokkiri.team.repository.TeamRepository;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,33 +28,40 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public void signup(MemberSignupReqDto request) {
+    public void signup(MemberSignupReqDto request, HttpSession session) {
         // 이메일 인증 확인
         boolean verified = emailService.isEmailVerified(request.getEmail(), "signup");
-        if (!verified) {
-            throw new IllegalStateException("이메일 인증이 완료되지 않았습니다.");
+
+        // 세션에서 teamCode 꺼내기
+        String teamCode = (String) session.getAttribute("teamCode");
+        if (teamCode == null || teamCode.isBlank()) {
+            throw new IllegalStateException("세션에 저장된 팀 코드가 없습니다.");
         }
 
-        Team team = teamRepository.findByTeamCode(request.getTeamCode())
-                .orElseThrow(() -> new IllegalArgumentException("유효하지않은 팀코드입니다."));
+        // teamCode로 Team 조회
+        Team team = teamRepository.findByTeamCode(teamCode)
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 팀 코드입니다."));
 
+        // 닉네임 없을 시 랜덤 생성
         String nickname = request.getNickname();
         if (nickname == null || nickname.isBlank()) {
-            nickname = "Kosa" + ((int)(Math.random() * 100) + 1); // 랜덤 1~100
+            nickname = "Kosa" + ((int)(Math.random() * 100) + 1); // 1~100 랜덤
         }
 
-
+        // Member 생성 및 저장
         Member member = Member.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .nickname(request.getNickname())
+                .nickname(nickname) // ← 수정
                 .team(team)
                 .role(Role.USER)
                 .build();
 
         memberRepository.save(member);
-    }
 
+        // 세션 정리
+        session.removeAttribute("teamCode");
+    }
     public Member login(MemberLoginReqDto request) {
         Member member = memberRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다"));

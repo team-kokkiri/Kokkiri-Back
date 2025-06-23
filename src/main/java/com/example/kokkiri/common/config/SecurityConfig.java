@@ -6,6 +6,7 @@ import com.example.kokkiri.common.jwt.RefreshTokenService;
 import com.example.kokkiri.common.oauth.CustomOAuth2UserService;
 import com.example.kokkiri.common.oauth.OAuth2AuthenticationSuccessHandler;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +33,7 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
     private final MemberRepository memberRepository;
+    private final TeamRepository teamRepository;
     private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
@@ -45,10 +47,12 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/members/login",
+                                "/api/team/verify",
+                                "/api/team/session",
                                 "/api/members/signup",
                                 "/api/members/refresh",
                                 "/api/members/reset",
@@ -75,7 +79,7 @@ public class SecurityConfig {
 
     @Bean
     public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
-        return new OAuth2AuthenticationSuccessHandler(jwtUtil, refreshTokenService);
+        return new OAuth2AuthenticationSuccessHandler(jwtUtil, refreshTokenService,memberRepository,teamRepository);
     }
 
     @Bean
@@ -94,8 +98,3 @@ public class SecurityConfig {
 
 
 }
-
-
-
-
-
