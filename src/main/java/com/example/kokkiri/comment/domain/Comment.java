@@ -9,6 +9,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -43,9 +46,18 @@ public class Comment extends BaseTimeEntity {
     @Builder.Default
     private String delYn = "N";
 
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @OrderBy("createdTime ASC")
+    private List<Comment> replies = new ArrayList<>();
+
     // 댓글 수정
     public void update(String newContent) {
         this.commentContent = newContent;
+    }
+
+    // 댓글 삭제
+    public void markDeleted() {
+        this.delYn = "Y";
     }
 
     // 댓글 좋아요

@@ -10,6 +10,7 @@ import com.example.kokkiri.board.repository.BoardLikeRepository;
 import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
+import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -37,6 +38,7 @@ public class BoardService {
     private final FileService fileService;
     private final MemberRepository memberRepository;
     private final BoardLikeRepository boardLikeRepository;
+    private final CommentRepository commentRepository;
 
     // 게시글 작성
 
@@ -72,27 +74,79 @@ public class BoardService {
     }
 
     // 자유게시판
-    public List<Board> findBoardList(Long boardId) {
-        return boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(boardId, "N");
+    public List<BoardListResDto> getBoardList(Long typeId) {
+        List<Board> boards = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N");
+
+        return boards.stream()
+                .map(board -> {
+                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
+                    String thumbnailUrl = board.getBoardFiles().stream()
+                            // "image/"로 시작하는 타입만 필터링
+                            .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
+                            // 조건을 통과한 이미지 파일 중 첫 번째 파일
+                            .findFirst()
+                            // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
+                            .map(BoardFile::getFilePath)
+                            .orElse(null);
+
+                    return new BoardListResDto(
+                            board.getId(),
+                            board.getBoardTitle(),
+                            board.getBoardContent(),
+                            board.getMember().getNickname(),
+                            board.getLikeCount(),
+                            commentCount,
+                            board.getCreatedTime(),
+                            board.getBoardType().getTypeName(),
+                            thumbnailUrl
+                    );
+                })
+                .toList();
     }
 
     // BEST 게시판
-    public List<Board> findPopularBoards(Long boardId) {
-        return boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(boardId, "N");
+    public List<BoardListResDto> getPopularBoardList(Long typeId) {
+        List<Board> boards = boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(typeId, "N");
+
+        return boards.stream()
+                .map(board -> {
+                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
+                    String thumbnailUrl = board.getBoardFiles().stream()
+                            .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
+                            .findFirst()
+                            .map(BoardFile::getFilePath)
+                            .orElse(null);
+
+                    return new BoardListResDto(
+                            board.getId(),
+                            board.getBoardTitle(),
+                            board.getBoardContent(),
+                            board.getMember().getNickname(),
+                            board.getLikeCount(),
+                            commentCount,
+                            board.getCreatedTime(),
+                            board.getBoardType().getTypeName(),
+                            thumbnailUrl
+                    );
+                })
+                .toList();
     }
 
     // 게시글 상세조회
-    public BoardDetailResDto findBoardDetail(Long boardId) {
+    public BoardDetailResDto getBoardDetail(Long boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
 
         // 댓글 리스트
         List<CommentListResDto> boardComments = board.getBoardComments().stream()
+                // 삭제된 댓글이면서 답글이 없음
+                .filter(comment -> !(comment.getDelYn().equals("Y") && comment.getReplies().isEmpty()))
                 .map(comment -> new CommentListResDto(
                         comment.getId(),
                         comment.getMember().getId(),
-//                        comment.getParent().getId(), // 답글
-                        comment.getCommentContent(),
+                        comment.getParent() != null ? comment.getParent().getId() : null,
+                        comment.getDelYn().equals("Y") ? "(삭제된 댓글입니다.)" : comment.getCommentContent(),
+                        comment.getDelYn().equals("Y"),
                         comment.getCreatedTime()
                 ))
                 .collect(Collectors.toList());
@@ -164,10 +218,10 @@ public class BoardService {
     // 게시글 좋아요
     public void likeBoard(Long boardId, Long memberId) {
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new EntityNotFoundException("게시글을 찾을 수 없습니다"));
+                .orElseThrow(() -> new EntityNotFoundException("게시글이 존재하지 않습니다."));
 
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new EntityNotFoundException("회원 정보를 찾을 수 없습니다"));
+                .orElseThrow(() -> new EntityNotFoundException("회원 정보가 존재하지 않습니다."));
 
         // 이미 좋아요 했는지 확인
         boolean alreadyLiked = boardLikeRepository.existsByBoardAndMember(board, member);
@@ -187,7 +241,6 @@ public class BoardService {
         board.increaseLikeCount();
     }
 
-
     // 페이징 처리
     public BoardPageResDto getBoardPage(Long typeId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -197,19 +250,24 @@ public class BoardService {
                 : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
 
         List<BoardListResDto> boardListResDtos = boardPage.getContent().stream()
-                .map(board -> new BoardListResDto(
-                        board.getId(),
-                        board.getBoardTitle(),
-                        board.getBoardContent(),
-                        board.getMember().getNickname(),
-                        board.getLikeCount(),
-                        board.getBoardComments().size(),
-                        board.getCreatedTime(),
-                        board.getBoardType().getTypeName(),
-                        board.getBoardFiles() != null && !board.getBoardFiles().isEmpty()
-                                ? board.getBoardFiles().get(0).getFilePath()
-                                : null
-                ))
+                .map(board -> {
+                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
+                    String thumbnailUrl = board.getBoardFiles() != null && !board.getBoardFiles().isEmpty()
+                            ? board.getBoardFiles().get(0).getFilePath()
+                            : null;
+
+                    return new BoardListResDto(
+                            board.getId(),
+                            board.getBoardTitle(),
+                            board.getBoardContent(),
+                            board.getMember().getNickname(),
+                            board.getLikeCount(),
+                            commentCount,
+                            board.getCreatedTime(),
+                            board.getBoardType().getTypeName(),
+                            thumbnailUrl
+                    );
+                })
                 .toList();
 
         return new BoardPageResDto(

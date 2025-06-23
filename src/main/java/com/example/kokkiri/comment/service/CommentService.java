@@ -32,12 +32,20 @@ public class CommentService {
     // 댓글 작성
     public Comment createComment(Long boardId, Member commenter, CommentCreateReqDto commentCreateReqDto) {
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new EntityNotFoundException("게시글이 존재하지 않습니다."));
+
+        // parentId가 있으면 대댓글
+        Comment parent = null;
+        if (commentCreateReqDto.getParentId() != null) {
+            parent = commentRepository.findById(commentCreateReqDto.getParentId())
+                    .orElseThrow(() -> new EntityNotFoundException("부모 댓글이 없습니다."));
+        }
 
         Comment comment = Comment.builder()
                 .board(board)
                 .member(commenter)
                 .commentContent(commentCreateReqDto.getComment())
+                .parent(parent)
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
@@ -49,14 +57,19 @@ public class CommentService {
             notificationService.send(postWriter, NotificationType.COMMENT, content, String.valueOf(board.getId()), savedComment.getCreatedTime());
         }
 
+        // 댓글 작성자에게 알림 보내기
+        if (parent != null && !parent.getMember().getId().equals(commenter.getId())) {
+            String content = commenter.getNickname() + "님이 회원님의 댓글에 답글을 남겼습니다.";
+            notificationService.send(parent.getMember(), NotificationType.REPLY, content, String.valueOf(boardId), savedComment.getCreatedTime());
+        }
+
         return savedComment;
     }
 
     // 댓글 수정
     public void updateComment(Long commentId, Member member, CommentUpdateReqDto commentUpdateReqDto) {
-        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new EntityNotFoundException("댓글이 존재하지 않습니다."));
         if (!comment.getMember().getId().equals(member.getId())) {
-            System.out.println("댓글 수정 권한 없음 예외 발생");
             throw new AccessDeniedException("댓글 수정 권한이 없습니다.");
         }
         comment.update(commentUpdateReqDto.getComment());
@@ -64,21 +77,21 @@ public class CommentService {
 
     // 댓글 삭제
     public void softDeleteComment(Long commentId, Member member) {
-        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new EntityNotFoundException("댓글이 존재하지 않습니다."));
         if (!comment.getMember().getId().equals(member.getId())) {
-            System.out.println("댓글 삭제 권한 없음 예외 발생");
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
-        commentRepository.delete(comment);
+        comment.markDeleted();
+        commentRepository.save(comment);
     }
 
     // 댓글 좋아요
     public void likeComment(Long commentId, Long memberId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("댓글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new EntityNotFoundException("댓글이 존재하지 않습니다."));
 
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new EntityNotFoundException("회원 정보를 찾을 수 없습니다"));
+                .orElseThrow(() -> new EntityNotFoundException("회원 정보가 존재하지 않습니다."));
 
         // 이미 좋아요 했는지 확인
         boolean alreadyLiked = commentLikeRepository.existsByCommentAndMember(comment, member);
