@@ -10,6 +10,8 @@ import com.example.kokkiri.comment.repository.CommentLikeRepository;
 import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.notification.domain.NotificationType;
+import com.example.kokkiri.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,23 +27,33 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final CommentLikeRepository commentLikeRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
 
     // 댓글 작성
-    public Comment createComment(Long boardId, Member member, CommentCreateReqDto commentCreateReqDto) {
-        Board board = boardRepository.findById(commentCreateReqDto.getBoardId())
+    public Comment createComment(Long boardId, Member commenter, CommentCreateReqDto commentCreateReqDto) {
+        Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
         Comment comment = Comment.builder()
                 .board(board)
-                .member(member)
+                .member(commenter)
                 .commentContent(commentCreateReqDto.getComment())
                 .build();
 
-        return commentRepository.save(comment);
+        Comment savedComment = commentRepository.save(comment);
+
+        // 게시글 작성자에게 알림 보내기
+        Member postWriter = board.getMember();
+        if (!postWriter.getId().equals(commenter.getId())) {
+            String content = commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.";
+            notificationService.send(postWriter, NotificationType.COMMENT, content, String.valueOf(board.getId()), savedComment.getCreatedTime());
+        }
+
+        return savedComment;
     }
 
     // 댓글 수정
-    public void updateComment(Long boardId, Long commentId, Member member, CommentUpdateReqDto commentUpdateReqDto) {
+    public void updateComment(Long commentId, Member member, CommentUpdateReqDto commentUpdateReqDto) {
         Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
         if (!comment.getMember().getId().equals(member.getId())) {
             System.out.println("댓글 수정 권한 없음 예외 발생");

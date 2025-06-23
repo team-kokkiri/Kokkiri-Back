@@ -27,18 +27,16 @@ public class CommentController {
 
     // 댓글 수정
     @PutMapping(value = "/{commentId}")
-    public ResponseEntity<?> updateComment(@PathVariable("boardId") Long boardId,
-                                           @PathVariable Long commentId,
+    public ResponseEntity<?> updateComment(@PathVariable Long commentId,
                                            @AuthenticationPrincipal Member member,
                                            @RequestBody CommentUpdateReqDto commentUpdateReqDto) {
-        commentService.updateComment(boardId, commentId, member, commentUpdateReqDto);
+        commentService.updateComment(commentId, member, commentUpdateReqDto);
         return ResponseEntity.ok().build();
     }
 
     // 댓글 삭제
     @DeleteMapping(value = "/{commentId}")
-    public ResponseEntity<?> deleteComment(@PathVariable("boardId") Long boardId,
-                                           @PathVariable Long commentId,
+    public ResponseEntity<?> deleteComment(@PathVariable Long commentId,
                                            @AuthenticationPrincipal Member member) {
         commentService.softDeleteComment(commentId, member);
         return ResponseEntity.ok().build();
