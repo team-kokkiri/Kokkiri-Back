@@ -30,6 +30,8 @@ public class Notification {
     @JoinColumn(name = "member_id")
     private Member receiver;
 
+    private Long invitationId;
+
     private LocalDateTime actionCreatedAt;
 
     @Column(length = 1)
