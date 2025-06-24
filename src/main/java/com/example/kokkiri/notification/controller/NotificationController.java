@@ -53,5 +53,10 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/read/chat")
+    public ResponseEntity<?> readAllChatNotifications() {
+        notificationService.markChatNotificationsAsRead();
+        return ResponseEntity.ok().build();
+    }
 
 }
