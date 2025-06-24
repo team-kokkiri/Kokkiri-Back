@@ -27,9 +27,9 @@ public class OAuth2LoginController {
 
         String role = member.getRole().name(); // 또는 기본 역할 "ROLE_USER" 등 적절히 세팅
 
-        String accessToken = jwtUtil.generateToken(email, role, true);
-        String refreshToken = jwtUtil.generateToken(email, role, false);
+        String accessToken = jwtUtil.generateToken(email, role, true,member.getAvatar());
+        String refreshToken = jwtUtil.generateToken(email, role, false,member.getAvatar());
 
-        return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken, email));
+        return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken, email,role));
     }
 }

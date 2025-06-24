@@ -15,11 +15,12 @@ public class JwtUtil {
 
     // JWT 토큰 생성 (예: 로그인 성공 시 사용자 이메일 담기)
     // 액세스,리플레시 토큰 발급
-    public String generateToken(String email, String role, boolean isAccessToken) {
+    public String generateToken(String email, String role, boolean isAccessToken, String avatar) {
         long expiration = isAccessToken ? jwtProperties.getAccessExpiration() : jwtProperties.getRefreshExpiration();
 
         Claims claims = Jwts.claims().setSubject(email);
         claims.put("role", role);
+        claims.put("avatar", avatar);
 
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration * 60 * 1000);

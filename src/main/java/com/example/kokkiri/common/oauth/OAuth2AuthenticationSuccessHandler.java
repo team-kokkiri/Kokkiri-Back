@@ -31,6 +31,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getEmail();
+        String avatar = ((CustomOAuth2User) authentication.getPrincipal()).getAvatar();
 
         String teamCode = (String) request.getSession().getAttribute("teamCode");
         if (teamCode == null || teamCode.isEmpty()) {
@@ -59,8 +60,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             }
 
             String role = "ROLE_USER";
-            String accessToken = jwtUtil.generateToken(email, role, true);
-            String refreshToken = jwtUtil.generateToken(email, role, false);
+            String accessToken = jwtUtil.generateToken(email, role, true,avatar);
+            String refreshToken = jwtUtil.generateToken(email, role, false,avatar);
             long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
 
             refreshTokenService.saveRefreshToken(email, refreshToken, refreshTokenExpiry);

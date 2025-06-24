@@ -1,13 +1,13 @@
 package com.example.kokkiri.member.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
-@AllArgsConstructor
-public class MemberInfoResDto {
+@Setter
+public class MemberLoginResDto {
+    private String accessToken;
     private String email;
-    private String nickname;
     private String role;
     private String avatarUrl;
 }

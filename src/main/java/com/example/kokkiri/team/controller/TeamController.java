@@ -37,7 +37,6 @@ public class TeamController {
         }
 
         session.setAttribute("teamCode", teamCode);
-        log.info("세션에 teamCode 저장: {}", teamCode);
         return ResponseEntity.ok().build();
     }
 
@@ -45,7 +44,6 @@ public class TeamController {
     @GetMapping("/session")
     public ResponseEntity<?> getTeamCodeFromSession(HttpSession session) {
         String teamCode = (String) session.getAttribute("teamCode");
-        log.info("🔍 세션 ID 조회: {}", session.getId());
 
         if (teamCode == null) {
             return ResponseEntity.status(400).body("세션에 저장된 팀 코드가 없습니다.");
