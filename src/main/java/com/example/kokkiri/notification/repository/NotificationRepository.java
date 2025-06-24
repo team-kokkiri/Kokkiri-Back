@@ -4,6 +4,7 @@ import com.example.kokkiri.notification.domain.Notification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -34,4 +35,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Slice<Notification> findByReceiverIdAndDelYnAndIdLessThanOrderByIdDesc(Long receiverId, String delYn, Long lastId, Pageable pageable);
     Optional<Notification> findByInvitationId(Long invitationId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = 'Y' WHERE n.receiver.id = :memberId AND n.notificationType = 'CHAT' AND n.isRead = 'N'")
+    void markAllChatNotificationsAsReadForMember(@Param("memberId") Long memberId);
+
 }

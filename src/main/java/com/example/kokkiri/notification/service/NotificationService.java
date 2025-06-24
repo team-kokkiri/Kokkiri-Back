@@ -147,6 +147,15 @@ public class NotificationService {
         return notificationRepository.findByInvitationId(invitationId);
     }
 
+    @Transactional
+    public void markChatNotificationsAsRead() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
+
+        notificationRepository.markAllChatNotificationsAsReadForMember(member.getId());
+    }
+
 
     // =================  PRIVATE HELPER METHODS  ================= //
 
@@ -225,4 +234,6 @@ public class NotificationService {
                 .actionCreatedAt(actionCreatedAt)
                 .build();
     }
+
+
 }
