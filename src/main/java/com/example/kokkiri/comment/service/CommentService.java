@@ -54,13 +54,13 @@ public class CommentService {
         Member postWriter = board.getMember();
         if (!postWriter.getId().equals(commenter.getId())) {
             String content = commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.";
-            notificationService.send(postWriter, NotificationType.COMMENT, content, String.valueOf(board.getId()), savedComment.getCreatedTime());
+            notificationService.send(postWriter, NotificationType.COMMENT, content, String.valueOf(board.getId()), null, savedComment.getCreatedTime());
         }
 
         // 댓글 작성자에게 알림 보내기
         if (parent != null && !parent.getMember().getId().equals(commenter.getId())) {
             String content = commenter.getNickname() + "님이 회원님의 댓글에 답글을 남겼습니다.";
-            notificationService.send(parent.getMember(), NotificationType.REPLY, content, String.valueOf(boardId), savedComment.getCreatedTime());
+            notificationService.send(parent.getMember(), NotificationType.REPLY, content, String.valueOf(boardId), null, savedComment.getCreatedTime());
         }
 
         return savedComment;
