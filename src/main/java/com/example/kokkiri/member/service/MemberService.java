@@ -140,7 +140,7 @@ public class MemberService {
     public String generateAccessToken(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-        return jwtUtil.generateToken(email, member.getRole().name(), true,null);
+        return jwtUtil.generateToken(email, member.getRole().name(), true,member.getNickname(),null);
     }
 
     // 비밀번호 유효성 검사

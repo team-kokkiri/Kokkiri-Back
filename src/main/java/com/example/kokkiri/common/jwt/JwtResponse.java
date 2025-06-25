@@ -14,9 +14,10 @@ public class JwtResponse {
     private String refreshToken;
     private String email;
     private String role;
+    private String nickname;
     private String avatar;
 
-    public JwtResponse(String accessToken, String refreshToken, String email, String role) {
-        this(accessToken, refreshToken, email, role, null); // avatar는 null로 처리
+    public JwtResponse(String accessToken, String refreshToken, String email,String role,String nickname) {
+        this(accessToken, refreshToken, email, role, nickname,null); // avatar는 null로 처리
     }
 }

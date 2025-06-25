@@ -89,8 +89,8 @@ public class MemberController {
             Member member = memberService.login(request);
             String role = member.getRole().name();
             String avatar = member.getAvatar();
-            String accessToken = jwtUtil.generateToken(member.getEmail(), role, true,avatar);
-            String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false,avatar);
+            String accessToken = jwtUtil.generateToken(member.getEmail(), role, true, member.getNickname(), avatar);
+            String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false, member.getNickname(), avatar);
 
 
             // Redis에 리프레시 토큰 저장
@@ -177,7 +177,7 @@ public class MemberController {
     // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshAccessToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        System.out.println(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
+        log.info(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
 
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token이 유효하지 않습니다.");
@@ -194,7 +194,7 @@ public class MemberController {
 
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
-        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true,null);
+        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true, member.getNickname(), null);
         log.info("✅ 새 AccessToken 발급 완료: {}", newAccessToken);
 
         return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email,member.getRole().name(),null));

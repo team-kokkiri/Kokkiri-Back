@@ -26,7 +26,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private String generateSimpleNickname() {
         int randomNum = (int) (Math.random() * 20) + 1;
-        return "미등록_고라니" + randomNum;
+        return "고라니" + randomNum;
     }
 
     private static final List<String> DEFAULT_PROFILE_IMAGES = List.of(

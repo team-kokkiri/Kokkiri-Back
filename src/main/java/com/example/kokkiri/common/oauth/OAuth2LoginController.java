@@ -4,7 +4,9 @@ import com.example.kokkiri.common.jwt.JwtResponse;
 import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,16 +22,32 @@ public class OAuth2LoginController {
     private final JwtUtil jwtUtil;
 
     @GetMapping("/success")
-    public ResponseEntity<?> oauth2Success(Authentication authentication) {
-        String email = authentication.getName(); // 구글에서 가져온 이메일
+    public ResponseEntity<?> oauth2Success(
+            Authentication authentication,
+            HttpServletResponse response
+    ) {
+        String email = authentication.getName();
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
 
-        String role = member.getRole().name(); // 또는 기본 역할 "ROLE_USER" 등 적절히 세팅
+        String role = member.getRole().name();
+        String accessToken = jwtUtil.generateToken(email, role, true,member.getNickname(),member.getAvatar());
+        String refreshToken = jwtUtil.generateToken(email, role, false, member.getNickname(), member.getAvatar());
 
-        String accessToken = jwtUtil.generateToken(email, role, true,member.getAvatar());
-        String refreshToken = jwtUtil.generateToken(email, role, false,member.getAvatar());
+        // 리프레시 토큰을 쿠키로 내려주기
+        long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(refreshTokenExpiry / 1000)
+                .sameSite("Strict")
+                .build();
 
-        return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken, email,role));
+        response.setHeader("Set-Cookie", cookie.toString());
+
+        // accessToken만 바디에 전달
+        return ResponseEntity.ok(new JwtResponse(accessToken, null, email, role, member.getAvatar()));
     }
+
 }
