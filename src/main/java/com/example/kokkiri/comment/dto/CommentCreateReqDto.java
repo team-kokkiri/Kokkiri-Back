@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CommentCreateReqDto {
     private Long memberId;
-    //    private Long parentId;
+    private Long parentId;
     private String comment;
 }

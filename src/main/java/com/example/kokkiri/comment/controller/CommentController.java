@@ -16,7 +16,7 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    // 댓글 작성
+    // 댓글, 답글 작성
     @PostMapping
     public ResponseEntity<?> createComment(@PathVariable("boardId") Long boardId,
                                            @AuthenticationPrincipal Member member,
