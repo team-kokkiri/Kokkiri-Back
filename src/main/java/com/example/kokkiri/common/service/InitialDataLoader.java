@@ -42,10 +42,10 @@ public class InitialDataLoader implements CommandLineRunner {
     private void insertBoardTypes() {
         if (boardTypeRepository.count() == 0) {  // 중복 방지
             List<BoardType> boardTypes = List.of(
-                    new BoardType(1L, "자유게시판", "N"),
-                    new BoardType(2L, "자료공유 게시판", "N"),
-                    new BoardType(3L, "HOT 게시판", "N"),
-                    new BoardType(4L, "공지사항", "N")
+                    BoardType.builder().typeName("자유게시판").delYn("N").build(),
+                    BoardType.builder().typeName("자료공유 게시판").delYn("N").build(),
+                    BoardType.builder().typeName("HOT 게시판").delYn("N").build(),
+                    BoardType.builder().typeName("공지사항").delYn("N").build()
             );
             boardTypeRepository.saveAll(boardTypes);
         }
