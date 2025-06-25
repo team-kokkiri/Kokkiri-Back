@@ -9,12 +9,14 @@ import com.example.kokkiri.chat.repository.*;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.notification.domain.NotificationType;
+import com.example.kokkiri.notification.repository.NotificationRepository;
 import com.example.kokkiri.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +32,9 @@ public class ChatService {
     private final MemberRepository memberRepository;
     private final ChatInvitationRepository chatInvitationRepository;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
-    public ChatService(ChatRoomRepository chatRoomRepository, ChatParticipantRepository chatParticipantRepository, ChatMessageRepository chatMessageRepository, ReadStatusRepository readStatusRepository, MemberRepository memberRepository, ChatInvitationRepository chatInvitationRepository, NotificationService notificationService) {
+    public ChatService(ChatRoomRepository chatRoomRepository, ChatParticipantRepository chatParticipantRepository, ChatMessageRepository chatMessageRepository, ReadStatusRepository readStatusRepository, MemberRepository memberRepository, ChatInvitationRepository chatInvitationRepository, NotificationService notificationService, NotificationRepository notificationRepository) {
         this.chatRoomRepository = chatRoomRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.chatMessageRepository = chatMessageRepository;
@@ -39,6 +42,7 @@ public class ChatService {
         this.memberRepository = memberRepository;
         this.chatInvitationRepository = chatInvitationRepository;
         this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
     }
 
     public ChatMessageDto saveMessage(Long roomId, ChatMessageDto chatMessageReqDto){
@@ -85,7 +89,7 @@ public class ChatService {
         List<ChatParticipant> chatParticipants = chatParticipantRepository.findByChatRoom(chatRoom);
         for(ChatParticipant c : chatParticipants) {
             if(!c.getMember().equals(sender)){
-                notificationService.send(c.getMember(), NotificationType.CHAT, "new chat", url, actionCreatedAt);
+                notificationService.send(c.getMember(), NotificationType.CHAT, "new chat", url, null, actionCreatedAt);
             }
         }
 
@@ -208,7 +212,8 @@ public class ChatService {
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
         // 유저가 참여중인 모든 채팅방 가져오기
-        List<ChatParticipant> chatParticipants = chatParticipantRepository.findAllByMember(member);
+        // N+1 문제 개선: findAllByMemberWithChatRoom 사용
+        List<ChatParticipant> chatParticipants = chatParticipantRepository.findAllByMemberWithChatRoom(member);
 
         List<MyChatListResDto> myChatListResDtos = new ArrayList<>();
         for (ChatParticipant c : chatParticipants){
@@ -319,14 +324,16 @@ public class ChatService {
         chatInvitationRepository.save(invitation);
 
         String content = inviter.getNickname() + "님이 <" + chatRoom.getName() + "> 그룹 채팅에 초대하였습니다.";
-        notificationService.send(invitedMember, NotificationType.INVITATION, content, null, invitation.getCreatedTime());
+        String url = "/chatPage/" + chatRoom.getId();
+        notificationService.send(invitedMember, NotificationType.INVITATION, content, url, invitation.getId(), invitation.getCreatedTime());
     }
 
-    public void acceptInvitation(Long invitationId){
+    public void acceptInvitation(Long invitationId) {
         ChatInvitation invitation = chatInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
 
-        Member invitedMember = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
+        Member invitedMember = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(() -> new EntityNotFoundException("member cannot be found"));
+
 
         boolean alreadyExists = chatParticipantRepository.existsByChatRoomAndMember(invitation.getChatRoom(), invitedMember);
         if (alreadyExists) {
@@ -340,6 +347,12 @@ public class ChatService {
 
         chatParticipantRepository.save(newParticipant);
         invitation.delete();
+        // 5. 알림 처리: isRead = 'Y', delYn = 'Y'로 변경
+        // invitationId를 사용하여 관련 알림을 찾음
+        notificationService.findByInvitationId(invitationId).ifPresent(notification -> {
+            notification.updateIsRead();
+            notification.delete();
+        });
     }
 
     public void rejectInvitation(Long invitationId) {
@@ -347,5 +360,9 @@ public class ChatService {
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
 
         invitation.delete();
+        notificationService.findByInvitationId(invitationId).ifPresent(notification -> {
+            notification.updateIsRead();
+            notification.delete();
+        });
     }
 }

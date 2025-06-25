@@ -40,6 +40,9 @@ public class Board extends BaseTimeEntity {
     @Builder.Default
     private Integer likeCount = 0;
 
+    @Column(nullable = false)
+    private Boolean questionYn = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;

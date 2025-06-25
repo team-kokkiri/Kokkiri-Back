@@ -2,12 +2,15 @@ package com.example.kokkiri.notification.repository;
 
 import com.example.kokkiri.notification.domain.Notification;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
@@ -30,5 +33,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Long countByReceiverIdAndDelYnAndIsRead(Long memberId, String delYn, String isRead);
 
+    Slice<Notification> findByReceiverIdAndDelYnAndIdLessThanOrderByIdDesc(Long receiverId, String delYn, Long lastId, Pageable pageable);
+    Optional<Notification> findByInvitationId(Long invitationId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = 'Y' WHERE n.receiver.id = :memberId AND n.notificationType = 'CHAT' AND n.isRead = 'N'")
+    void markAllChatNotificationsAsReadForMember(@Param("memberId") Long memberId);
 
 }
