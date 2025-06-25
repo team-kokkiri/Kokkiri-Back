@@ -5,10 +5,10 @@ import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.common.jwt.RefreshTokenService;
 import com.example.kokkiri.member.dto.*;
 import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.profile.FileStorageService;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.member.service.EmailService;
 import com.example.kokkiri.member.service.MemberService;
-import com.example.kokkiri.team.repository.TeamRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +19,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.security.Principal;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 
 @Slf4j
@@ -37,58 +42,45 @@ public class MemberController {
     private final RefreshTokenService refreshTokenService;
     private final StringRedisTemplate redisTemplate; //redis인증여부 확인용
     private final EmailService emailService;
-    private final TeamRepository teamRepository;
+    private final FileStorageService fileStorageService;
 
     //회원가입
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request, HttpSession session) {
-        String email = request.getEmail();
-
-        log.info("회원가입 요청 들어옴: {}", request);
-
-        // 팀코드는 무조건 세션에서 가져오기 (request.getTeamCode() 사용하지 않음)
-        String teamCode = (String) session.getAttribute("teamCode");
-        if (teamCode == null || teamCode.isBlank()) {
-            log.warn("세션에 저장된 팀 코드가 없습니다.");
-            return ResponseEntity.badRequest().body("세션에 저장된 팀 코드가 없습니다.");
-        }
-
-        // 이메일 중복 여부 확인
-        if (memberRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 가입된 이메일입니다.");
-        }
-
-        // 팀코드 유효성검사
-        if (teamRepository.findByTeamCode(teamCode).isEmpty()) {
-            return ResponseEntity.badRequest().body("유효하지 않은 팀코드 입니다.");
-        }
-
-        // 비밀번호 유효성 검사
-        if (request.getPassword() == null || request.getPassword().length() < 8) {
-            return ResponseEntity.badRequest().body("비밀번호는 8자 이상이어야 합니다.");
-        }
-
-        // Redis에 회원 정보 임시 저장
         try {
-            String key = "email:temp:signup:" + email;
-            ObjectMapper objectMapper = new ObjectMapper();
+            String email = request.getEmail();
+            String teamCode = (String) session.getAttribute("teamCode");
 
-            MemberSignupReqDto dataToSave = new MemberSignupReqDto();
-            dataToSave.setEmail(email);
-            dataToSave.setPassword(request.getPassword());
-            dataToSave.setNickname(request.getNickname());
-            dataToSave.setTeamCode(teamCode); // 세션에서 읽은 teamCode
+            if (teamCode == null || teamCode.isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("세션에 저장된 팀 코드가 없습니다.");
+            }
 
-            String json = objectMapper.writeValueAsString(dataToSave);
-            redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(10)); // 10분 저장
+            // Redis에 회원 정보 임시 저장
+            try {
+                String key = "email:temp:signup:" + email;
+                ObjectMapper objectMapper = new ObjectMapper();
+
+                MemberSignupReqDto dataToSave = new MemberSignupReqDto();
+                dataToSave.setEmail(email);
+                dataToSave.setPassword(request.getPassword());
+                dataToSave.setNickname(request.getNickname());
+                dataToSave.setTeamCode(teamCode); // 세션에서 읽은 teamCode
+
+                String json = objectMapper.writeValueAsString(dataToSave);
+                redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(10)); // 10분 저장
+            } catch (Exception e) {
+                log.error("회원가입 정보 저장 중 오류", e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("회원가입 정보 저장 중 오류 발생");
+            }
+
+            return ResponseEntity.ok("회원가입 정보가 임시 저장되었습니다. 이메일 인증을 진행해주세요.");
         } catch (Exception e) {
-            log.error("회원가입 정보 저장 중 오류", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("회원가입 정보 저장 중 오류 발생");
+            log.error("회원가입 처리 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("서버 오류가 발생했습니다.");
         }
-
-        return ResponseEntity.ok("회원가입 정보가 임시 저장되었습니다. 이메일 인증을 진행해주세요.");
     }
+
 
     //로그인
     @PostMapping("/login")
@@ -96,8 +88,10 @@ public class MemberController {
         try {
             Member member = memberService.login(request);
             String role = member.getRole().name();
-            String accessToken = jwtUtil.generateToken(member.getEmail(), role, true);
-            String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false);
+            String avatar = member.getAvatar();
+            String accessToken = jwtUtil.generateToken(member.getEmail(), role, true, member.getNickname(), avatar);
+            String refreshToken = jwtUtil.generateToken(member.getEmail(), role, false, member.getNickname(), avatar);
+
 
             // Redis에 리프레시 토큰 저장
             long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
@@ -118,7 +112,7 @@ public class MemberController {
             log.info(">>> 유효성 검사 결과: " + jwtUtil.validateToken(refreshToken));
 
             // accessToken만 응답 바디에 포함 (refreshToken은 쿠키에 있음)
-            return ResponseEntity.ok(new JwtResponse(accessToken, null, member.getEmail()));
+            return ResponseEntity.ok(new JwtResponse(accessToken, null, member.getEmail(), member.getRole().name(), avatar));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
@@ -155,16 +149,35 @@ public class MemberController {
         MemberInfoResDto response = new MemberInfoResDto(
                 member.getEmail(),
                 member.getNickname(),
-                member.getRole().name()
+                member.getRole().name(),
+                member.getAvatar()
         );
 
         return ResponseEntity.ok(response);
     }
 
+    //마이페이지안에서 (이미지 변경api)
+    @PostMapping("/api/members/profile-image")
+    public ResponseEntity<?> uploadProfileImage(@RequestParam("file") MultipartFile file, Principal principal) {
+        // 1. 파일 저장
+        String imageUrl = fileStorageService.store(file);
+
+        // 2. 로그인한 멤버 조회
+        Member member = memberRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
+
+        // 3. 프로필 이미지 URL 업데이트
+        member.setAvatar(imageUrl);
+        memberRepository.save(member);
+
+        // 4. 응답
+        return ResponseEntity.ok(Map.of("profileImageUrl", imageUrl));
+    }
+
     // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshAccessToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        System.out.println(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
+        log.info(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
 
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token이 유효하지 않습니다.");
@@ -172,6 +185,8 @@ public class MemberController {
 
         String email = jwtUtil.getEmailFromToken(refreshToken);
         String storedRefreshToken = refreshTokenService.getRefreshToken(email);
+        log.info("📦 전달받은 RefreshToken: {}", refreshToken);
+
 
         if (!refreshToken.equals(storedRefreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("저장된 Refresh token과 일치하지 않습니다.");
@@ -179,9 +194,10 @@ public class MemberController {
 
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
-        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true);
+        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true, member.getNickname(), null);
+        log.info("✅ 새 AccessToken 발급 완료: {}", newAccessToken);
 
-        return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email));
+        return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email,member.getRole().name(),null));
     }
     
     //비밀번호 재설정

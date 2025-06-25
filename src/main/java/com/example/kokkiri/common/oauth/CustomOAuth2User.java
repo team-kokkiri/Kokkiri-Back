@@ -18,6 +18,7 @@ public class CustomOAuth2User implements OAuth2User {
     private final String name;     // Spring Security 내부 고유 ID
     private final String email;
     private final String provider; // OAuth2 제공자 정보
+    private final String avatar;
 
     @Override
     public Map<String, Object> getAttributes() {

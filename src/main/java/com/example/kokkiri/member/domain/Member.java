@@ -42,6 +42,9 @@ public class Member implements UserDetails {  // UserDetails 구현
     @Builder.Default
     private String isActive = "Y";
 
+    @Column(length = 500)
+    private String avatar;  // 프로필 사진 URL 저장
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
