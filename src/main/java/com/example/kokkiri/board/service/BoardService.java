@@ -253,6 +253,7 @@ public class BoardService {
                     NotificationType.LIKE_BOARD,
                     content,
                     String.valueOf(board.getId()),
+                    null,
                     saveBoardLike.getCreatedTime()
             );
         }
