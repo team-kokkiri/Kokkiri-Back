@@ -12,4 +12,5 @@ public class BoardCreateReqDto {
     private Long boardTypeId;
     private String boardTitle;
     private String boardContent;
+    private Boolean questionYn;
 }

@@ -14,15 +14,19 @@ import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.notification.domain.NotificationType;
+import com.example.kokkiri.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +43,7 @@ public class BoardService {
     private final MemberRepository memberRepository;
     private final BoardLikeRepository boardLikeRepository;
     private final CommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     // 게시글 작성
 
@@ -59,6 +64,7 @@ public class BoardService {
                 .boardType(boardType)
                 .boardTitle(boardCreateReqDto.getBoardTitle())
                 .boardContent(boardCreateReqDto.getBoardContent())
+                .questionYn(boardCreateReqDto.getQuestionYn())
                 .build();
 
         boardRepository.save(board);
@@ -144,8 +150,10 @@ public class BoardService {
                 .map(comment -> new CommentListResDto(
                         comment.getId(),
                         comment.getMember().getId(),
+                        comment.getMember().getNickname(),
                         comment.getParent() != null ? comment.getParent().getId() : null,
                         comment.getDelYn().equals("Y") ? "(삭제된 댓글입니다.)" : comment.getCommentContent(),
+                        comment.getLikeCount(),
                         comment.getDelYn().equals("Y"),
                         comment.getCreatedTime()
                 ))
@@ -223,10 +231,9 @@ public class BoardService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new EntityNotFoundException("회원 정보가 존재하지 않습니다."));
 
-        // 이미 좋아요 했는지 확인
         boolean alreadyLiked = boardLikeRepository.existsByBoardAndMember(board, member);
         if (alreadyLiked) {
-            throw new IllegalStateException("이미 좋아요를 누르셨습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 좋아요 누름");
         }
 
         // 좋아요 저장
@@ -234,11 +241,21 @@ public class BoardService {
                 .board(board)
                 .member(member)
                 .build();
-
-        boardLikeRepository.save(boardLike);
-
-        // 게시글 좋아요 수 증가
         board.increaseLikeCount();
+        BoardLike saveBoardLike = boardLikeRepository.save(boardLike);
+
+        // 게시글 작성자에게 알림 전송 (본인 글 좋아한 건 제외)
+        Member postWriter = board.getMember();
+        if (!postWriter.getId().equals(member.getId())) {
+            String content = member.getNickname() + "님이 회원님의 게시글을 좋아합니다.";
+            notificationService.send(
+                    postWriter,
+                    NotificationType.LIKE_BOARD,
+                    content,
+                    String.valueOf(board.getId()),
+                    saveBoardLike.getCreatedTime()
+            );
+        }
     }
 
     // 페이징 처리

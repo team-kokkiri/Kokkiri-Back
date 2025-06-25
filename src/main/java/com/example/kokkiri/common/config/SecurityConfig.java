@@ -79,13 +79,13 @@ public class SecurityConfig {
 
     @Bean
     public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
-        return new OAuth2AuthenticationSuccessHandler(jwtUtil, refreshTokenService,memberRepository,teamRepository);
+        return new OAuth2AuthenticationSuccessHandler(jwtUtil, refreshTokenService, memberRepository, teamRepository);
     }
 
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000","http://localhost:8080"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:8080"));
         configuration.setAllowedMethods(Arrays.asList("*"));    // 모든 HTTP 메서드 허용
         configuration.setAllowedHeaders(Arrays.asList("*"));    // 모든 헤더값 허용
         configuration.setAllowCredentials(true);                // 자격 증명 허용
