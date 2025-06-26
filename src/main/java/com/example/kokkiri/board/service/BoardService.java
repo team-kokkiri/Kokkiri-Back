@@ -104,7 +104,12 @@ public class BoardService {
     // 사이드 게시글 프리뷰
     public List<BoardListResDto> getPreview(Long typeId, int size) {
         Pageable pageable = PageRequest.of(0, size);
-        Page<Board> boardPage = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
+        // typeId == 3L일 때 베스트 게시판 처리
+        Page<Board> boardPage = (typeId == 3L)
+                ? boardRepository.findBestBoardsPage(pageable)
+                : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
         return boardPage.getContent().stream().map(this::boardListResDto).toList();
     }
 

@@ -61,8 +61,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                 WHERE b.delYn = 'N'
                   AND (
                        LOWER(b.boardTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-                       LOWER(b.member.nickname) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%'))
                   )
             ORDER BY b.createdTime DESC
             """)
@@ -76,8 +75,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                   AND b.boardType.id = :typeId
                   AND (
                        LOWER(b.boardTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-                       LOWER(b.member.nickname) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%'))
                   )
             ORDER BY b.createdTime DESC
             """)
