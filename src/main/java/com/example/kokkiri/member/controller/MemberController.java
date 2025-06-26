@@ -199,7 +199,7 @@ public class MemberController {
 
         return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email,member.getRole().name(),null));
     }
-    
+
     //비밀번호 재설정
     @PostMapping("/reset")
     public ResponseEntity<String> resetPassword(@RequestBody MemberResetPasswordReqDto request) {
@@ -232,6 +232,52 @@ public class MemberController {
 
         List<MemberSearchResDto> memberSearchResDtos = memberService.searchMember(keyword, lastId, size);
         return new ResponseEntity<>(memberSearchResDtos, HttpStatus.OK);
+    }
+
+    @GetMapping("/nickname/check")
+    public ResponseEntity<?> checkNickname(@RequestParam String nickname) {
+        boolean exists = memberRepository.findByNickname(nickname).isPresent();
+        return ResponseEntity.ok(Map.of("available", !exists));
+    }
+
+    @PostMapping("/nickname")
+    public ResponseEntity<String> updateNickname(@RequestBody MemberNicknameUpdateReqDto request, Authentication authentication){
+        String email = authentication.getName(); // 현재 로그인한 사용자 이메일 조회
+
+        try {
+            memberService.updateNickname(email, request.getNickname());
+            return ResponseEntity.ok("닉네임이 성공적으로 변경되었습니다.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<String> changePassword(
+            @RequestBody MemberPasswordChangeReqDto request,
+            Authentication authentication) {
+
+        String email = authentication.getName(); // 로그인한 사용자 이메일
+
+        try {
+            memberService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok("비밀번호가 변경되었습니다.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    //회원탈퇴
+    @DeleteMapping
+    public ResponseEntity<String> deleteMember(Authentication authentication) {
+        String email = authentication.getName();
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("회원 정보를 찾을 수 없습니다."));
+
+        memberRepository.delete(member); // DB에서 완전 삭제
+
+        return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
     }
 
 }
