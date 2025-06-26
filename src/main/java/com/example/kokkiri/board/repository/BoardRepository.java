@@ -42,12 +42,10 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     // 페이징 - BEST 게시판
     @Query("""
             SELECT b FROM Board b
-                  WHERE b.delYn = :delYn
-                    AND b.likeCount >= :likeCount
-            ORDER BY b.likeCount DESC, b.createdTime DESC
+                  WHERE b.delYn = 'N'
+                    AND b.likeCount >= 10
+            ORDER BY b.createdTime DESC
             """)
-    Page<Board> findBestBoardsPage(@Param("likeCount") int likeCount,
-                                   @Param("delYn") String delYn,
-                                   Pageable pageable);
+    Page<Board> findBestBoardsPage(Pageable pageable);
 
 }

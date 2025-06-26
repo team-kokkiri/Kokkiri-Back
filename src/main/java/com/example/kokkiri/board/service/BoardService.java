@@ -240,7 +240,7 @@ public class BoardService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Board> boardPage = (typeId == 3L)
-                ? boardRepository.findBestBoardsPage(10, "N", pageable)
+                ? boardRepository.findBestBoardsPage(pageable)
                 : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
 
         List<BoardListResDto> boardListResDtos = boardPage.getContent().stream().map(this::boardListResDto).toList();
