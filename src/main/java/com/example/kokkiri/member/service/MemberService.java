@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import jakarta.servlet.http.HttpSession;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -55,7 +57,7 @@ public class MemberService {
         }
 
         // 5. 비밀번호 유효성 검사
-        validatePassword(request.getPassword());
+        isValidPassword(request.getPassword());
 
         // 6. 닉네임 생성
         String nickname = request.getNickname();
@@ -144,10 +146,24 @@ public class MemberService {
     }
 
     // 비밀번호 유효성 검사
-    private void validatePassword(String password) {
-        if (password == null || password.length() < 8) {
-            throw new IllegalArgumentException("비밀번호는 8자 이상이어야 합니다.");
+    private boolean isValidPassword(String password) {
+        // 1. 공백 제거 & 길이 체크
+        if (password == null || password.length() < 8 || password.length() > 32 || password.contains(" ")) {
+            return false;
         }
+
+        // 2. 문자 종류 검사
+        int count = 0;
+        if (password.matches(".*[A-Za-z].*")) count++;       // 영문 포함
+        if (password.matches(".*\\d.*")) count++;             // 숫자 포함
+        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) count++; // 특수문자 포함
+
+        if (count < 2) return false;
+
+        // 3. 동일 문자 3자리 이상 반복 검사 (예: aaa, 111)
+        if (password.matches(".*(.)\\1\\1.*")) return false;
+
+        return true;
     }
 
     // 닉네임 랜덤 생성
@@ -161,4 +177,55 @@ public class MemberService {
             "/images/profiles/default2.png",
             "/images/profiles/default3.png"
     );
+
+    @Transactional
+    public void updateNickname(String email, String newNickname) {
+        // 1. 새 닉네임 중복 체크
+        boolean exists = memberRepository.findByNickname(newNickname).isPresent();
+        if (exists) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+
+        // 2. 회원 조회
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        // 3. 닉네임 변경
+        member.setNickname(newNickname);
+    }
+
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        if (!passwordEncoder.matches(currentPassword, member.getPassword())) {
+            throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        if (!isValidPassword(newPassword)) {
+            throw new IllegalArgumentException("비밀번호는 8~32자, 공백 제외, 영문/숫자/특수문자 중 2가지 이상 포함하고 동일문자 3번 이상 반복할 수 없습니다.");
+        }
+
+        // 새 비밀번호 암호화 후 저장
+        member.setPassword(passwordEncoder.encode(newPassword));
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
