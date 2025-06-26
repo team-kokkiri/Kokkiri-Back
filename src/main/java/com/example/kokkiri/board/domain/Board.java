@@ -72,4 +72,9 @@ public class Board extends BaseTimeEntity {
         this.likeCount += 1;
     }
 
+    // 질문글에서 일반글으로 변경
+    public void setQuestionYn(boolean questionYn) {
+        this.questionYn = questionYn;
+    }
+
 }
