@@ -4,6 +4,9 @@ import com.example.kokkiri.chat.dto.ChatMessageDto;
 import com.example.kokkiri.chat.dto.ChatRoomListResDto;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
 import com.example.kokkiri.chat.service.ChatService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -59,9 +62,14 @@ public class ChatController {
 
     // 내 채팅방 목록 조회: roomId, roomName, 그룹채팅여부, 메세지 읽음 개수
     @GetMapping("/myRooms")
-    public ResponseEntity<?> getMyChatRooms(){
-        List<MyChatListResDto> myChatListResDtos = chatService.getMyChatRooms();
-        return new ResponseEntity<>( myChatListResDtos, HttpStatus.OK);
+    public ResponseEntity<?> getMyChatRooms(@PageableDefault(page = 0, size = 20) Pageable pageable) {
+
+        // ChatService는 이제 Page 객체를 반환합니다.
+        Page<MyChatListResDto> myChatRoomsPage = chatService.getMyChatRooms(pageable);
+
+        // Page 객체 자체를 반환하면, Spring이 알아서 JSON으로 변환해줍니다.
+        // 이 JSON에는 채팅 목록(content) 외에 총 페이지 수, 현재 페이지 번호 등 유용한 정보가 모두 포함됩니다.
+        return new ResponseEntity<>(myChatRoomsPage, HttpStatus.OK);
     }
 
     // 채팅방 나가기
