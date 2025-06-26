@@ -50,6 +50,17 @@ public class CommentService {
 
         Comment savedComment = commentRepository.save(comment);
 
+        // 댓글이 질문글의 첫 댓글일 경우 -> 질문글 아님으로 변경
+        if (board.getQuestionYn()) {
+            Long commentCount = commentRepository.countAllByBoardId(boardId);
+
+            // 대댓글이 아니고 첫 댓글일 때만 변경
+            if (commentCreateReqDto.getParentId() == null && commentCount == 1) {
+                board.setQuestionYn(false);
+                boardRepository.save(board);
+            }
+        }
+
         // 게시글 작성자에게 알림 보내기
         Member postWriter = board.getMember();
         if (!postWriter.getId().equals(commenter.getId())) {
