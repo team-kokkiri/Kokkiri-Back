@@ -1,6 +1,6 @@
 package com.example.kokkiri.member.domain;
 
-import com.example.kokkiri.calendar.domain.CalendarEvent;
+import com.example.kokkiri.calendar.domain.CalendarEntity;
 import com.example.kokkiri.team.domain.Team;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,7 +50,7 @@ public class Member implements UserDetails {  // UserDetails 구현
     private Team team;
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private List<CalendarEvent> calendarEvents = new ArrayList<>();
+    private List<CalendarEntity> calendarEntities = new ArrayList<>();
 
 
     // === UserDetails 인터페이스 메서드 구현 ===
