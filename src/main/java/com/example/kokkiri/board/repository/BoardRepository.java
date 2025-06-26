@@ -27,32 +27,26 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     // BEST 게시판
     @Query("""
             SELECT b FROM Board b
-                WHERE b.boardType.id = :typeId
-                  AND b.delYn = 'N'
-                  AND b.likeCount >= 10
-            ORDER BY b.likeCount DESC, b.createdTime DESC
+                  WHERE b.delYn = 'N'
+                    AND b.likeCount >= 10
+            ORDER BY b.createdTime DESC
             """)
-    List<Board> findBestBoards(@Param("typeId") Long typeId);
+    List<Board> findBestBoards();
 
     // 자유게시판, 공지사항, 자료공유
     List<Board> findByBoardTypeIdAndDelYnAndQuestionYnFalseOrderByCreatedTimeDesc(Long BoardTypeId, String delYn);
-
 
     // 페이징 - 자유게시판, 공지사항, 자료공유
     Page<Board> findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(Long BoardTypeId, String delYn, Pageable pageable);
 
     // 페이징 - BEST 게시판
-    Page<Board> findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(Long boardTypeId, String delYn, Pageable pageable);
-
     @Query("""
             SELECT b FROM Board b
-                WHERE b.boardType.id = :boardTypeId
-                  AND b.delYn = :delYn
-                  AND b.likeCount >= :likeCount
+                  WHERE b.delYn = :delYn
+                    AND b.likeCount >= :likeCount
             ORDER BY b.likeCount DESC, b.createdTime DESC
             """)
-    Page<Board> findBestBoardsPage(@Param("boardTypeId") Long boardTypeId,
-                                   @Param("likeCount") int likeCount,
+    Page<Board> findBestBoardsPage(@Param("likeCount") int likeCount,
                                    @Param("delYn") String delYn,
                                    Pageable pageable);
 
