@@ -22,7 +22,7 @@ public class MyBoardService {
 
         return boards.stream()
                 .map(board -> {
-                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
+                    Long commentCount = commentRepository.countAllNotDeletedByBoardId(board.getId());
                     return new MyWrittenResDto(board, commentCount);
                 })
                 .toList();
@@ -34,7 +34,7 @@ public class MyBoardService {
 
         return boards.stream()
                 .map(board -> {
-                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
+                    Long commentCount = commentRepository.countAllNotDeletedByBoardId(board.getId());
                     return new MyWrittenResDto(board, commentCount);
                 })
                 .toList();

@@ -11,6 +11,7 @@ import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
 import com.example.kokkiri.comment.repository.CommentRepository;
+import com.example.kokkiri.comment.service.CommentService;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -44,6 +45,7 @@ public class BoardService {
     private final BoardLikeRepository boardLikeRepository;
     private final CommentRepository commentRepository;
     private final NotificationService notificationService;
+    private final CommentService commentService;
 
     // 게시글 작성
     public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member, List<MultipartFile> files) {
@@ -115,7 +117,7 @@ public class BoardService {
 
     // 게시글 정보를 BoardListResDto로 변환하는 공통 메서드
     private BoardListResDto boardListResDto(Board board) {
-        Long commentCount = commentRepository.countAllByBoardId(board.getId());
+        Long commentCount = commentRepository.countAllNotDeletedByBoardId(board.getId());
         String thumbnailUrl = board.getBoardFiles().stream()
                 // "image/"로 시작하는 타입만 필터링
                 .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
@@ -123,6 +125,7 @@ public class BoardService {
                 .findFirst()
                 // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
                 .map(BoardFile::getFilePath)
+                // .map(file -> "/api/files/" + file.getSavedName())
                 .orElse(null);
 
         return new BoardListResDto(
@@ -147,13 +150,17 @@ public class BoardService {
         // 댓글 리스트
         List<CommentListResDto> boardComments = board.getBoardComments().stream()
                 // 삭제된 댓글이면서 답글이 없음
-                .filter(comment -> !(comment.getDelYn().equals("Y") && comment.getReplies().isEmpty()))
+                .filter(comment -> {
+                    // 삭제되지 않았거나, 삭제됐지만 답글 중 하나라도 살아있으면 보이게
+                    if (comment.getDelYn().equals("N")) return true;
+                    return comment.getReplies().stream().anyMatch(reply -> reply.getDelYn().equals("N"));
+                })
                 .map(comment -> new CommentListResDto(
                         comment.getId(),
                         comment.getMember().getId(),
                         comment.getMember().getNickname(),
                         comment.getParent() != null ? comment.getParent().getId() : null,
-                        comment.getDelYn().equals("Y") ? "(삭제된 댓글입니다.)" : comment.getCommentContent(),
+                        comment.getDelYn().equals("Y") ? "삭제된 댓글입니다." : comment.getCommentContent(),
                         comment.getLikeCount(),
                         comment.getDelYn().equals("Y"),
                         comment.getCreatedTime()
@@ -165,13 +172,16 @@ public class BoardService {
                 .map(file -> "/api/files/" + file.getSavedName())
                 .toList();
 
+        // 실제 보여지는 댓글 수
+        Long visibleCommentCount = commentService.getVisibleCommentCount(boardId);
+
         return BoardDetailResDto.builder()
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
                 .writer(board.getMember().getNickname())
                 .likeCount(board.getLikeCount())
-                .commentCount(board.getBoardComments().size())
+                .commentCount(Math.toIntExact(visibleCommentCount))
                 .boardCreatedAt(board.getCreatedTime())
                 .comments(boardComments)
                 .fileUrls(fileUrls)
