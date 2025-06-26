@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -80,28 +79,13 @@ public class BoardService {
         return board;
     }
 
-    // 게시글 조회
-    // 자유게시판
+    // 게시글 조회 - 자유게시판
     public List<BoardListResDto> getBoardListMerged(Long typeId) {
-        // 질문글
-        List<Board> questionBoards = boardRepository.findUnansweredQuestionBoards(typeId);
-        // 일반글
-        List<Board> normalBoards = boardRepository.findByBoardTypeIdAndDelYnAndQuestionYnFalseOrderByCreatedTimeDesc(typeId, "N");
-
-        // 질문글 → DTO 변환
-        List<BoardListResDto> pinnedQuestionDtos = questionBoards.stream().map(this::boardListResDto).toList();
-        // 일반글 → DTO 변환
-        List<BoardListResDto> normalBoardDtos = normalBoards.stream().map(this::boardListResDto).toList();
-
-        // 질문글 → 일반글 순으로 합치기
-        List<BoardListResDto> merged = new ArrayList<>();
-        merged.addAll(pinnedQuestionDtos);
-        merged.addAll(normalBoardDtos);
-
-        return merged;
+        List<Board> allBoards = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N");
+        return allBoards.stream().map(this::boardListResDto).toList();
     }
 
-    // BEST 게시판
+    // 게시글 조회 - BEST 게시판
     public List<BoardListResDto> getBestBoardsFromFreeBoard() {
         List<Board> boards = boardRepository.findBestBoards();
         return boards.stream().map(this::boardListResDto).toList();
