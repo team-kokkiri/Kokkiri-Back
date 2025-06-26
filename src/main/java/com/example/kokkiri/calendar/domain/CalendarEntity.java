@@ -14,7 +14,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @Getter
-public class CalendarEvent {
+public class CalendarEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,10 +30,6 @@ public class CalendarEvent {
 
     @Column(nullable = false)
     private Boolean isPublic;
-
-    @Column(nullable = false, length = 1)
-    @Builder.Default
-    private String priorityYn = "N";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "memberId", nullable = false)

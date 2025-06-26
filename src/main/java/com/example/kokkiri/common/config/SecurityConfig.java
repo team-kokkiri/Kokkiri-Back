@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/api/members/signup",
                                 "/api/members/refresh",
                                 "/api/members/reset",
+                                "/api/calendars/**",
                                 "/connect/**",
                                 "/api/email/**",
                                 "/oauth2/**",
