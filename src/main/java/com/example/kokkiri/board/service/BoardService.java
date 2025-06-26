@@ -80,6 +80,7 @@ public class BoardService {
         return board;
     }
 
+    // 게시글 조회
     // 자유게시판
     public List<BoardListResDto> getBoardListMerged(Long typeId) {
         // 질문글
@@ -102,9 +103,15 @@ public class BoardService {
 
     // BEST 게시판
     public List<BoardListResDto> getBestBoardsFromFreeBoard() {
-        Long freeBoardTypeId = 1L; // 자유게시판 고정
-        List<Board> boards = boardRepository.findBestBoards(freeBoardTypeId);
+        List<Board> boards = boardRepository.findBestBoards();
         return boards.stream().map(this::boardListResDto).toList();
+    }
+
+    // 사이드 게시글 프리뷰
+    public List<BoardListResDto> getPreview(Long typeId, int size) {
+        Pageable pageable = PageRequest.of(0, size);
+        Page<Board> boardPage = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+        return boardPage.getContent().stream().map(this::boardListResDto).toList();
     }
 
     // 게시글 상세조회
@@ -233,7 +240,7 @@ public class BoardService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Board> boardPage = (typeId == 3L)
-                ? boardRepository.findBestBoardsPage(1L, 10, "N", pageable)
+                ? boardRepository.findBestBoardsPage(pageable)
                 : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
 
         List<BoardListResDto> boardListResDtos = boardPage.getContent().stream().map(this::boardListResDto).toList();
