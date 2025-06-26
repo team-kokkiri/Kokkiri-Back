@@ -12,6 +12,10 @@ import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.repository.NotificationRepository;
 import com.example.kokkiri.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +24,9 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -208,43 +214,35 @@ public class ChatService {
         }
     }
 
-    public List<MyChatListResDto> getMyChatRooms(){
-        Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
-        // 유저가 참여중인 모든 채팅방 가져오기
-        // N+1 문제 개선: findAllByMemberWithChatRoom 사용
-        List<ChatParticipant> chatParticipants = chatParticipantRepository.findAllByMemberWithChatRoom(member);
+    public Page<MyChatListResDto> getMyChatRooms(Pageable pageable) {
+        // 1. 현재 사용자 정보 조회
+        Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new EntityNotFoundException("member cannot be found"));
 
-        List<MyChatListResDto> myChatListResDtos = new ArrayList<>();
-        for (ChatParticipant c : chatParticipants){
-            ChatRoom chatRoom = c.getChatRoom();
-            String isGroupChat = chatRoom.getIsGroupChat();
+        // 2. [쿼리 1 실행] 정렬된 채팅방 ID 목록을 페이징하여 조회
+        Page<Long> chatRoomIdsPage = chatParticipantRepository.findSortedChatRoomIdsByMember(member, pageable);
+        List<Long> sortedRoomIds = chatRoomIdsPage.getContent();
 
-            // 1. 안 읽은 메시지 수
-            Long count = readStatusRepository.countByChatRoomAndMemberAndIsReadFalse(c.getChatRoom(), member);
-
-            // 2. 채팅방 이름 설정
-            String roomName = isGroupChat.equals("Y") ?
-                    chatRoom.getName() :
-                    chatParticipantRepository.findOpponentNameByChatRoomId(chatRoom.getId(), member.getId());
-
-            // 3. 마지막 메시지
-            ChatMessage lastMessageEntity = chatMessageRepository.findTopByChatRoomOrderByCreatedTimeDesc(chatRoom);
-            String lastMessage = lastMessageEntity != null ? lastMessageEntity.getContent() : "";
-            LocalDateTime lastMessageTime = lastMessageEntity != null ? lastMessageEntity.getCreatedTime() : null;
-
-
-            MyChatListResDto dto = MyChatListResDto.builder()
-                    .roomId(c.getChatRoom().getId())
-                    .roomName(roomName)
-                    .isGroupChat(c.getChatRoom().getIsGroupChat())
-                    .unReadCount(count)
-                    .lastMessage(lastMessage)
-                    .lastMessageTime(lastMessageTime)
-                    .build();
-            myChatListResDtos.add(dto);
+        // 3. 조회된 채팅방 ID가 없으면 빈 페이지 반환
+        if (sortedRoomIds.isEmpty()) {
+            return Page.empty(pageable);
         }
-        return myChatListResDtos;
+
+        // 4. [쿼리 2 실행] ID 목록을 사용하여 상세 정보 DTO 목록 조회 (이 결과는 순서가 보장되지 않음)
+        List<MyChatListResDto> unsortedDetails = chatParticipantRepository.findChatRoomDetailsByRoomIds(member, sortedRoomIds);
+
+        // 5. DTO 목록을 ID 기준으로 Map으로 변환 (순서 재정렬을 위함)
+        Map<Long, MyChatListResDto> detailsMap = unsortedDetails.stream()
+                .collect(Collectors.toMap(MyChatListResDto::getRoomId, dto -> dto));
+
+        // 6. 원래 정렬된 ID 목록(sortedRoomIds)의 순서대로 DTO 목록을 재정렬
+        List<MyChatListResDto> sortedDetails = sortedRoomIds.stream()
+                .map(detailsMap::get)
+                .collect(Collectors.toList());
+
+        // 7. 최종적으로 Page 객체를 만들어 반환 (내용물, 페이징 정보, 전체 개수 포함)
+        return new PageImpl<>(sortedDetails, pageable, chatRoomIdsPage.getTotalElements());
     }
 
     public void leaveGroupChatRoom(Long roomId){

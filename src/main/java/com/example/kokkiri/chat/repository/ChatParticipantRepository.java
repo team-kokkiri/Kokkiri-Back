@@ -4,6 +4,8 @@ import com.example.kokkiri.chat.domain.ChatParticipant;
 import com.example.kokkiri.chat.domain.ChatRoom;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
 import com.example.kokkiri.member.domain.Member;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,7 +38,29 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
 
     Boolean existsByChatRoomAndMember(ChatRoom chatRoom, Member member);
 
-    // ★★★ N+1 문제 해결을 위한 JPQL 추가 ★★★
+    /**
+     * 1. 정렬된 채팅방 ID 목록을 페이징하여 조회하는 쿼리
+     * - 이 쿼리는 오직 '정렬'과 '페이징'에만 집중합니다.
+     */
+    @Query(value = """
+    SELECT cp.chatRoom.id
+    FROM ChatParticipant cp
+    LEFT JOIN ChatMessage cm ON cm.chatRoom = cp.chatRoom
+    WHERE cp.member = :member
+    GROUP BY cp.chatRoom.id
+    ORDER BY MAX(cm.createdTime) DESC NULLS LAST, cp.chatRoom.id DESC
+    """,
+            countQuery = """
+    SELECT COUNT(DISTINCT cp.chatRoom.id)
+    FROM ChatParticipant cp
+    WHERE cp.member = :member
+    """)
+    Page<Long> findSortedChatRoomIdsByMember(@Param("member") Member member, Pageable pageable);
+
+    /**
+     * 2. 조회된 ID 목록을 기반으로 실제 DTO 데이터를 가져오는 쿼리
+     * - 이 쿼리는 '데이터 조회'에만 집중하며, 정렬은 하지 않습니다.
+     */
     @Query("""
     SELECT new com.example.kokkiri.chat.dto.MyChatListResDto(
         cp.chatRoom.id,
@@ -48,11 +72,11 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     )
     FROM ChatParticipant cp
     LEFT JOIN ChatParticipant o ON o.chatRoom = cp.chatRoom AND o.member != :member
-    WHERE cp.member = :member
+    WHERE cp.chatRoom.id IN :roomIds AND cp.member = :member
     AND (cp.chatRoom.isGroupChat = 'Y' OR o.member IS NOT NULL)
-    GROUP BY cp.chatRoom.id
-    ORDER BY (SELECT MAX(cm.createdTime) FROM ChatMessage cm WHERE cm.chatRoom = cp.chatRoom) DESC
+    GROUP BY cp.chatRoom.id, cp.chatRoom.name, cp.chatRoom.isGroupChat, o.member.nickname
     """)
-    List<MyChatListResDto> findMyChatRoomsWithDetails(@Param("member") Member member);
+    List<MyChatListResDto> findChatRoomDetailsByRoomIds(@Param("member") Member member, @Param("roomIds") List<Long> roomIds);
+
 
 }
