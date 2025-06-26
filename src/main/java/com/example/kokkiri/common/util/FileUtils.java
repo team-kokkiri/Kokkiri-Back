@@ -3,9 +3,17 @@ package com.example.kokkiri.common.util;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.util.List;
 import java.util.UUID;
 
 public class FileUtils {
+
+    // 업로드 허용 파일 확장자
+    private static final List<String> ALLOWED_EXTENSIONS = List.of(
+            "pdf", "hwp", "doc", "docx", "ppt", "pptx",
+            "xls", "xlsx", "txt",
+            "csv", "jpg", "jpeg", "png"
+    );
 
     /**
      * UUID 사용 이유:
@@ -44,6 +52,18 @@ public class FileUtils {
         } catch (Exception e) {
             throw new RuntimeException("파일 저장 실패: " + e.getMessage(), e);
         }
+    }
+
+    public static boolean isAllowedExtension(String fileName) {
+        String extension = getFileExtension(fileName).toLowerCase();
+        return ALLOWED_EXTENSIONS.contains(extension);
+    }
+
+    public static String getFileExtension(String fileName) {
+        if (fileName == null || fileName.lastIndexOf(".") == -1) {
+            return "";
+        }
+        return fileName.substring(fileName.lastIndexOf(".") + 1);
     }
 
 }

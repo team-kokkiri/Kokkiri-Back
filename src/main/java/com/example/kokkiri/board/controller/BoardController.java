@@ -95,5 +95,7 @@ public class BoardController {
         return ResponseEntity.ok(boardPage);
     }
 
+    // 내가 쓴 글
+
 
 }

@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -35,5 +36,24 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
             ORDER BY b.createdTime DESC
             """)
     Page<Board> findBestBoardsPage(Pageable pageable);
+
+    // 내가 쓴 글
+    @Query("""
+            SELECT b FROM Board b
+                WHERE b.member.id = :memberId
+                  AND b.delYn = 'N'
+            ORDER BY b.createdTime DESC
+            """)
+    List<Board> findBoardsByWriter(@Param("memberId") Long memberId);
+
+    // 댓글 단 글
+    @Query("""
+            SELECT DISTINCT c.board FROM Comment c
+                WHERE c.member.id = :memberId
+                  AND c.board.delYn = 'N'
+            ORDER BY c.board.createdTime DESC
+            """)
+    List<Board> findBoardsByMyComments(@Param("memberId") Long memberId);
+
 
 }
