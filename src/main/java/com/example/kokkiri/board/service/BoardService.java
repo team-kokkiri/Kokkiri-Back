@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -80,62 +81,30 @@ public class BoardService {
     }
 
     // 자유게시판
-    public List<BoardListResDto> getBoardList(Long typeId) {
-        List<Board> boards = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N");
+    public List<BoardListResDto> getBoardListMerged(Long typeId) {
+        // 질문글
+        List<Board> questionBoards = boardRepository.findUnansweredQuestionBoards(typeId);
+        // 일반글
+        List<Board> normalBoards = boardRepository.findByBoardTypeIdAndDelYnAndQuestionYnFalseOrderByCreatedTimeDesc(typeId, "N");
 
-        return boards.stream()
-                .map(board -> {
-                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
-                    String thumbnailUrl = board.getBoardFiles().stream()
-                            // "image/"로 시작하는 타입만 필터링
-                            .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
-                            // 조건을 통과한 이미지 파일 중 첫 번째 파일
-                            .findFirst()
-                            // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
-                            .map(BoardFile::getFilePath)
-                            .orElse(null);
+        // 질문글 → DTO 변환
+        List<BoardListResDto> pinnedQuestionDtos = questionBoards.stream().map(this::boardListResDto).toList();
+        // 일반글 → DTO 변환
+        List<BoardListResDto> normalBoardDtos = normalBoards.stream().map(this::boardListResDto).toList();
 
-                    return new BoardListResDto(
-                            board.getId(),
-                            board.getBoardTitle(),
-                            board.getBoardContent(),
-                            board.getMember().getNickname(),
-                            board.getLikeCount(),
-                            commentCount,
-                            board.getCreatedTime(),
-                            board.getBoardType().getTypeName(),
-                            thumbnailUrl
-                    );
-                })
-                .toList();
+        // 질문글 → 일반글 순으로 합치기
+        List<BoardListResDto> merged = new ArrayList<>();
+        merged.addAll(pinnedQuestionDtos);
+        merged.addAll(normalBoardDtos);
+
+        return merged;
     }
 
     // BEST 게시판
-    public List<BoardListResDto> getPopularBoardList(Long typeId) {
-        List<Board> boards = boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(typeId, "N");
-
-        return boards.stream()
-                .map(board -> {
-                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
-                    String thumbnailUrl = board.getBoardFiles().stream()
-                            .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
-                            .findFirst()
-                            .map(BoardFile::getFilePath)
-                            .orElse(null);
-
-                    return new BoardListResDto(
-                            board.getId(),
-                            board.getBoardTitle(),
-                            board.getBoardContent(),
-                            board.getMember().getNickname(),
-                            board.getLikeCount(),
-                            commentCount,
-                            board.getCreatedTime(),
-                            board.getBoardType().getTypeName(),
-                            thumbnailUrl
-                    );
-                })
-                .toList();
+    public List<BoardListResDto> getBestBoardsFromFreeBoard() {
+        Long freeBoardTypeId = 1L; // 자유게시판 고정
+        List<Board> boards = boardRepository.findBestBoards(freeBoardTypeId);
+        return boards.stream().map(this::boardListResDto).toList();
     }
 
     // 게시글 상세조회
@@ -264,29 +233,10 @@ public class BoardService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Board> boardPage = (typeId == 3L)
-                ? boardRepository.findByBoardTypeIdAndDelYnOrderByLikeCountDescCreatedTimeDesc(typeId, "N", pageable)
+                ? boardRepository.findBestBoardsPage(1L, 10, "N", pageable)
                 : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
 
-        List<BoardListResDto> boardListResDtos = boardPage.getContent().stream()
-                .map(board -> {
-                    Long commentCount = commentRepository.countAllByBoardId(board.getId());
-                    String thumbnailUrl = board.getBoardFiles() != null && !board.getBoardFiles().isEmpty()
-                            ? board.getBoardFiles().get(0).getFilePath()
-                            : null;
-
-                    return new BoardListResDto(
-                            board.getId(),
-                            board.getBoardTitle(),
-                            board.getBoardContent(),
-                            board.getMember().getNickname(),
-                            board.getLikeCount(),
-                            commentCount,
-                            board.getCreatedTime(),
-                            board.getBoardType().getTypeName(),
-                            thumbnailUrl
-                    );
-                })
-                .toList();
+        List<BoardListResDto> boardListResDtos = boardPage.getContent().stream().map(this::boardListResDto).toList();
 
         return new BoardPageResDto(
                 boardListResDtos,
@@ -294,6 +244,33 @@ public class BoardService {
                 boardPage.getTotalPages(),
                 boardPage.getTotalElements(),
                 boardPage.isLast()
+        );
+    }
+
+    // boardListResDto 메서드 추출
+    private BoardListResDto boardListResDto(Board board) {
+        Long commentCount = commentRepository.countAllByBoardId(board.getId());
+
+        String thumbnailUrl = board.getBoardFiles().stream()
+                // "image/"로 시작하는 타입만 필터링
+                .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
+                // 조건을 통과한 이미지 파일 중 첫 번째 파일
+                .findFirst()
+                // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
+                .map(BoardFile::getFilePath)
+                .orElse(null);
+
+        return new BoardListResDto(
+                board.getId(),
+                board.getBoardTitle(),
+                board.getBoardContent(),
+                board.getMember().getNickname(),
+                board.getLikeCount(),
+                commentCount,
+                board.getCreatedTime(),
+                board.getBoardType().getTypeName(),
+                board.getQuestionYn(),
+                thumbnailUrl
         );
     }
 }

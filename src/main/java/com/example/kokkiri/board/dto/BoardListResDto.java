@@ -18,5 +18,6 @@ public class BoardListResDto {
     private Long commentCount; // count() 쿼리 결과는 JPA가 항상 Long을 반환
     private LocalDateTime createdAt;
     private String boardType;
+    private boolean questionYn;
     private String thumbnailUrl;
 }

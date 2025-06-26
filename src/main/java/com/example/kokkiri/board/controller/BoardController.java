@@ -38,11 +38,19 @@ public class BoardController {
     }
 
     // 게시글 리스트조회
+//    @GetMapping("/list/{typeId}")
+//    public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
+//        List<BoardListResDto> result = (typeId == 3L)
+//                ? boardService.getPopularBoardList(typeId)
+//                : boardService.getBoardListMerged(typeId);
+//        return ResponseEntity.ok(result);
+//    }
+    // 게시글 리스트조회
     @GetMapping("/list/{typeId}")
     public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
         List<BoardListResDto> result = (typeId == 3L)
-                ? boardService.getPopularBoardList(typeId)
-                : boardService.getBoardList(typeId);
+                ? boardService.getBestBoardsFromFreeBoard() // 자유게시판 기반 BEST 글 조회
+                : boardService.getBoardListMerged(typeId);  // 일반 리스트
         return ResponseEntity.ok(result);
     }
 
