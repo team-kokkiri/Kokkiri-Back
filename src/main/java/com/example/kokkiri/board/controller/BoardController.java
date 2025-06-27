@@ -5,6 +5,8 @@ import com.example.kokkiri.board.dto.*;
 import com.example.kokkiri.board.service.BoardService;
 import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,6 +48,15 @@ public class BoardController {
         return ResponseEntity.ok(result);
     }
 
+    // 페이징 게시글 리스트 조회
+    @GetMapping("/list/{typeId}/{page}")
+    public ResponseEntity<BoardPageResDto> getBoardPage(@PathVariable Long typeId,
+                                                        @RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        BoardPageResDto boardPage = boardService.getBoardPage(typeId, page, size);
+        return ResponseEntity.ok(boardPage);
+    }
+
     // 사이드 게시글 프리뷰
     @GetMapping("/preview/{typeId}")
     public ResponseEntity<List<BoardListResDto>> getPreview(@PathVariable Long typeId,
@@ -61,7 +72,7 @@ public class BoardController {
     }
 
     // 게시글 수정
-    @PutMapping(value = "/{boardId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value = "/detail/{boardId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateBoard(@PathVariable Long boardId,
                                          @AuthenticationPrincipal Member member,
                                          @RequestPart("board") BoardUpdateReqDto boardUpdateReqDto,
@@ -71,7 +82,7 @@ public class BoardController {
     }
 
     // 게시글 삭제
-    @DeleteMapping("/{boardId}")
+    @DeleteMapping("/detail/{boardId}")
     public ResponseEntity<?> deleteBoard(@PathVariable Long boardId,
                                          @AuthenticationPrincipal Member member) {
         boardService.softDeleteBoard(boardId, member);
@@ -86,16 +97,25 @@ public class BoardController {
         return ResponseEntity.ok().build();
     }
 
-    // 페이징 게시글 리스트 조회
-    @GetMapping("/list/{typeId}/{page}")
-    public ResponseEntity<BoardPageResDto> getBoardPage(@PathVariable Long typeId,
-                                                        @RequestParam(defaultValue = "0") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
-        BoardPageResDto boardPage = boardService.getBoardPage(typeId, page, size);
-        return ResponseEntity.ok(boardPage);
+    // 전체 게시판 검색
+    @GetMapping("/search")
+    public ResponseEntity<BoardPageResDto> searchAllBoards(@RequestParam String keyword,
+                                                           @RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        BoardPageResDto result = boardService.searchAllBoards(keyword, pageable);
+        return ResponseEntity.ok(result);
     }
 
-    // 내가 쓴 글
-
+    // 특정 게시판 검색
+    @GetMapping("/search/{typeId}")
+    public ResponseEntity<BoardPageResDto> searchBoardsByType(@PathVariable Long typeId,
+                                                              @RequestParam String keyword,
+                                                              @RequestParam(defaultValue = "0") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        BoardPageResDto result = boardService.searchBoardsByType(typeId, keyword, pageable);
+        return ResponseEntity.ok(result);
+    }
 
 }

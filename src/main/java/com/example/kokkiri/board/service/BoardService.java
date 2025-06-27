@@ -11,6 +11,7 @@ import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.board.repository.BoardTypeRepository;
 import com.example.kokkiri.comment.dto.CommentListResDto;
 import com.example.kokkiri.comment.repository.CommentRepository;
+import com.example.kokkiri.comment.service.CommentService;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -44,17 +45,9 @@ public class BoardService {
     private final BoardLikeRepository boardLikeRepository;
     private final CommentRepository commentRepository;
     private final NotificationService notificationService;
+    private final CommentService commentService;
 
     // 게시글 작성
-
-    /**
-     * 게시글을 생성하고, 해당 게시글에 첨부된 파일을 저장합니다.
-     *
-     * @param boardCreateReqDto 게시글 제목, 내용, 게시판 타입 ID 등이 담긴 DTO
-     * @param member            작성자 (인증된 사용자 정보)
-     * @param files             첨부파일 리스트 (없을 수도 있음)
-     * @return 생성된 게시글 엔티티
-     */
     public Board createBoard(BoardCreateReqDto boardCreateReqDto, Member member, List<MultipartFile> files) {
         BoardType boardType = boardTypeRepository.findById(boardCreateReqDto.getBoardTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
@@ -79,7 +72,7 @@ public class BoardService {
         return board;
     }
 
-    // 게시글 조회 - 자유게시판
+    // 게시글 조회 - 자유게시판, 자료공유, 공지사항
     public List<BoardListResDto> getBoardListMerged(Long typeId) {
         List<Board> allBoards = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N");
         return allBoards.stream().map(this::boardListResDto).toList();
@@ -87,15 +80,66 @@ public class BoardService {
 
     // 게시글 조회 - BEST 게시판
     public List<BoardListResDto> getBestBoardsFromFreeBoard() {
-        List<Board> boards = boardRepository.findBestBoards();
-        return boards.stream().map(this::boardListResDto).toList();
+        List<Board> bestBoards = boardRepository.findBestBoards();
+        return bestBoards.stream().map(this::boardListResDto).toList();
+    }
+
+    // 페이징 처리
+    public BoardPageResDto getBoardPage(Long typeId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Board> boardPage = (typeId == 3L)
+                ? boardRepository.findBestBoardsPage(pageable)
+                : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
+        List<BoardListResDto> boardListResDtos = boardPage.getContent().stream().map(this::boardListResDto).toList();
+
+        return new BoardPageResDto(
+                boardListResDtos,
+                boardPage.getNumber(),
+                boardPage.getTotalPages(),
+                boardPage.getTotalElements(),
+                boardPage.isLast()
+        );
     }
 
     // 사이드 게시글 프리뷰
     public List<BoardListResDto> getPreview(Long typeId, int size) {
         Pageable pageable = PageRequest.of(0, size);
-        Page<Board> boardPage = boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
+        // typeId == 3L일 때 베스트 게시판 처리
+        Page<Board> boardPage = (typeId == 3L)
+                ? boardRepository.findBestBoardsPage(pageable)
+                : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
+
         return boardPage.getContent().stream().map(this::boardListResDto).toList();
+    }
+
+    // 게시글 정보를 BoardListResDto로 변환하는 공통 메서드
+    private BoardListResDto boardListResDto(Board board) {
+        Long commentCount = commentRepository.countAllNotDeletedByBoardId(board.getId());
+        String thumbnailUrl = board.getBoardFiles().stream()
+                // "image/"로 시작하는 타입만 필터링
+                .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
+                // 조건을 통과한 이미지 파일 중 첫 번째 파일
+                .findFirst()
+                // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
+                .map(BoardFile::getFilePath)
+                // .map(file -> "/api/files/" + file.getSavedName())
+                .orElse(null);
+
+        return new BoardListResDto(
+                board.getId(),
+                board.getBoardTitle(),
+                board.getBoardContent(),
+                board.getMember().getNickname(),
+                board.getLikeCount(),
+                commentCount,
+                board.getCreatedTime(),
+                board.getBoardType().getTypeName(),
+                board.getQuestionYn(),
+                thumbnailUrl
+        );
     }
 
     // 게시글 상세조회
@@ -106,13 +150,17 @@ public class BoardService {
         // 댓글 리스트
         List<CommentListResDto> boardComments = board.getBoardComments().stream()
                 // 삭제된 댓글이면서 답글이 없음
-                .filter(comment -> !(comment.getDelYn().equals("Y") && comment.getReplies().isEmpty()))
+                .filter(comment -> {
+                    // 삭제되지 않았거나, 삭제됐지만 답글 중 하나라도 살아있으면 보이게
+                    if (comment.getDelYn().equals("N")) return true;
+                    return comment.getReplies().stream().anyMatch(reply -> reply.getDelYn().equals("N"));
+                })
                 .map(comment -> new CommentListResDto(
                         comment.getId(),
                         comment.getMember().getId(),
                         comment.getMember().getNickname(),
                         comment.getParent() != null ? comment.getParent().getId() : null,
-                        comment.getDelYn().equals("Y") ? "(삭제된 댓글입니다.)" : comment.getCommentContent(),
+                        comment.getDelYn().equals("Y") ? "삭제된 댓글입니다." : comment.getCommentContent(),
                         comment.getLikeCount(),
                         comment.getDelYn().equals("Y"),
                         comment.getCreatedTime()
@@ -124,13 +172,16 @@ public class BoardService {
                 .map(file -> "/api/files/" + file.getSavedName())
                 .toList();
 
+        // 실제 보여지는 댓글 수
+        Long visibleCommentCount = commentService.getVisibleCommentCount(boardId);
+
         return BoardDetailResDto.builder()
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
                 .writer(board.getMember().getNickname())
                 .likeCount(board.getLikeCount())
-                .commentCount(board.getBoardComments().size())
+                .commentCount(Math.toIntExact(visibleCommentCount))
                 .boardCreatedAt(board.getCreatedTime())
                 .comments(boardComments)
                 .fileUrls(fileUrls)
@@ -169,7 +220,6 @@ public class BoardService {
                 boardFileRepository.save(savedFile);
             }
         }
-
     }
 
     // 게시글 삭제
@@ -180,7 +230,8 @@ public class BoardService {
             System.out.println("게시글 삭제 권한 없음 예외 발생");
             throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         }
-        boardRepository.delete(board);
+        board.markDeleted();
+        boardRepository.save(board);
     }
 
     // 게시글 좋아요
@@ -219,49 +270,32 @@ public class BoardService {
         }
     }
 
-    // 페이징 처리
-    public BoardPageResDto getBoardPage(Long typeId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Board> boardPage = (typeId == 3L)
-                ? boardRepository.findBestBoardsPage(pageable)
-                : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
-
-        List<BoardListResDto> boardListResDtos = boardPage.getContent().stream().map(this::boardListResDto).toList();
+    // 전체 게시판 검색
+    public BoardPageResDto searchAllBoards(String keyword, Pageable pageable) {
+        Page<Board> page = boardRepository.searchAllBoards(keyword, pageable);
+        List<BoardListResDto> content = page.getContent().stream().map(this::boardListResDto).toList();
 
         return new BoardPageResDto(
-                boardListResDtos,
-                boardPage.getNumber(),
-                boardPage.getTotalPages(),
-                boardPage.getTotalElements(),
-                boardPage.isLast()
+                content,
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isLast()
         );
     }
 
-    // boardListResDto 메서드 추출
-    private BoardListResDto boardListResDto(Board board) {
-        Long commentCount = commentRepository.countAllByBoardId(board.getId());
+    // 특정 게시판 검색
+    public BoardPageResDto searchBoardsByType(Long typeId, String keyword, Pageable pageable) {
+        Page<Board> page = boardRepository.searchBoardsByType(typeId, keyword, pageable);
+        List<BoardListResDto> content = page.getContent().stream().map(this::boardListResDto).toList();
 
-        String thumbnailUrl = board.getBoardFiles().stream()
-                // "image/"로 시작하는 타입만 필터링
-                .filter(file -> file.getFileType() != null && file.getFileType().startsWith("image"))
-                // 조건을 통과한 이미지 파일 중 첫 번째 파일
-                .findFirst()
-                // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
-                .map(BoardFile::getFilePath)
-                .orElse(null);
-
-        return new BoardListResDto(
-                board.getId(),
-                board.getBoardTitle(),
-                board.getBoardContent(),
-                board.getMember().getNickname(),
-                board.getLikeCount(),
-                commentCount,
-                board.getCreatedTime(),
-                board.getBoardType().getTypeName(),
-                board.getQuestionYn(),
-                thumbnailUrl
+        return new BoardPageResDto(
+                content,
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isLast()
         );
     }
+
 }

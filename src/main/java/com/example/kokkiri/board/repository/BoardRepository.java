@@ -55,5 +55,33 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
             """)
     List<Board> findBoardsByMyComments(@Param("memberId") Long memberId);
 
+    // 전체 게시판 검색
+    @Query("""
+            SELECT b FROM Board b
+                WHERE b.delYn = 'N'
+                  AND (
+                       LOWER(b.boardTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            ORDER BY b.createdTime DESC
+            """)
+    Page<Board> searchAllBoards(@Param("keyword") String keyword,
+                                Pageable pageable);
+
+    // 특정 게시판 검색
+    @Query("""
+            SELECT b FROM Board b
+                WHERE b.delYn = 'N'
+                  AND b.boardType.id = :typeId
+                  AND (
+                       LOWER(b.boardTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+                       LOWER(b.boardContent) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            ORDER BY b.createdTime DESC
+            """)
+    Page<Board> searchBoardsByType(@Param("typeId") Long typeId,
+                                   @Param("keyword") String keyword,
+                                   Pageable pageable);
+
 
 }
