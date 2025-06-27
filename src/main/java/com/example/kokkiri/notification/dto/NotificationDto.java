@@ -28,7 +28,6 @@ public class NotificationDto {
                 .notificationType(notification.getNotificationType())
                 .invitationId(notification.getInvitationId())
                 .actionCreatedAt(notification.getActionCreatedAt())
-                .isRead(notification.getIsRead())
                 .build();
     }
 }

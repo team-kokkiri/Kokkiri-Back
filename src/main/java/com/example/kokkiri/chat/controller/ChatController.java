@@ -11,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -96,8 +98,10 @@ public class ChatController {
     // 그룹 채팅 초대 수락
     @PostMapping("/invitations/{invitationId}/accept")
     public ResponseEntity<?> acceptInvitation(@PathVariable Long invitationId){
-        chatService.acceptInvitation(invitationId);
-        return ResponseEntity.ok().build();
+        Long joinedRoomId = chatService.acceptInvitation(invitationId);
+        Map<String, Long> response = new HashMap<>();
+        response.put("roomId", joinedRoomId);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     // 그룹 채팅 초대 거절
