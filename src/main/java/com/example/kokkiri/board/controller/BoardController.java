@@ -7,6 +7,7 @@ import com.example.kokkiri.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,7 +41,7 @@ public class BoardController {
     }
 
     // 게시글 리스트조회
-    @GetMapping("/list/{typeId}")
+    @GetMapping("/list/{typeId}/simple")
     public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
         List<BoardListResDto> result = (typeId == 3L)
                 ? boardService.getBestBoardsFromFreeBoard() // 자유게시판 기반 BEST 글 조회
@@ -49,11 +50,12 @@ public class BoardController {
     }
 
     // 페이징 게시글 리스트 조회
-    @GetMapping("/list/{typeId}/{page}")
+    @GetMapping("/list/{typeId}")
     public ResponseEntity<BoardPageResDto> getBoardPage(@PathVariable Long typeId,
                                                         @RequestParam(defaultValue = "0") int page,
                                                         @RequestParam(defaultValue = "20") int size) {
-        BoardPageResDto boardPage = boardService.getBoardPage(typeId, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        BoardPageResDto boardPage = boardService.getBoardPage(typeId, pageable);
         return ResponseEntity.ok(boardPage);
     }
 
@@ -115,6 +117,26 @@ public class BoardController {
                                                               @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         BoardPageResDto result = boardService.searchBoardsByType(typeId, keyword, pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    // 내가 쓴 글
+    @GetMapping("/my/written")
+    public ResponseEntity<BoardPageResDto> getMyBoards(@AuthenticationPrincipal Member member,
+                                                       @RequestParam(defaultValue = "0") int page,
+                                                       @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        BoardPageResDto result = boardService.getMyBoards(member.getId(), pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    // 댓글 단 글
+    @GetMapping("/my/commented")
+    public ResponseEntity<BoardPageResDto> getMyCommented(@AuthenticationPrincipal Member member,
+                                                          @RequestParam(defaultValue = "0") int page,
+                                                          @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "created_time"));
+        BoardPageResDto result = boardService.getMyCommented(member.getId(), pageable);
         return ResponseEntity.ok(result);
     }
 

@@ -85,9 +85,7 @@ public class BoardService {
     }
 
     // 페이징 처리
-    public BoardPageResDto getBoardPage(Long typeId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-
+    public BoardPageResDto getBoardPage(Long typeId, Pageable pageable) {
         Page<Board> boardPage = (typeId == 3L)
                 ? boardRepository.findBestBoardsPage(pageable)
                 : boardRepository.findByBoardTypeIdAndDelYnOrderByCreatedTimeDesc(typeId, "N", pageable);
@@ -124,8 +122,8 @@ public class BoardService {
                 // 조건을 통과한 이미지 파일 중 첫 번째 파일
                 .findFirst()
                 // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
-                .map(BoardFile::getFilePath)
-                // .map(file -> "/api/files/" + file.getSavedName())
+//                .map(BoardFile::getFilePath)
+                .map(file -> "/api/files/" + file.getSavedName())
                 .orElse(null);
 
         return new BoardListResDto(
@@ -273,10 +271,10 @@ public class BoardService {
     // 전체 게시판 검색
     public BoardPageResDto searchAllBoards(String keyword, Pageable pageable) {
         Page<Board> page = boardRepository.searchAllBoards(keyword, pageable);
-        List<BoardListResDto> content = page.getContent().stream().map(this::boardListResDto).toList();
+        List<BoardListResDto> boardListResDtos = page.getContent().stream().map(this::boardListResDto).toList();
 
         return new BoardPageResDto(
-                content,
+                boardListResDtos,
                 page.getNumber(),
                 page.getTotalPages(),
                 page.getTotalElements(),
@@ -287,15 +285,44 @@ public class BoardService {
     // 특정 게시판 검색
     public BoardPageResDto searchBoardsByType(Long typeId, String keyword, Pageable pageable) {
         Page<Board> page = boardRepository.searchBoardsByType(typeId, keyword, pageable);
-        List<BoardListResDto> content = page.getContent().stream().map(this::boardListResDto).toList();
+        List<BoardListResDto> boardListResDtos = page.getContent().stream().map(this::boardListResDto).toList();
 
         return new BoardPageResDto(
-                content,
+                boardListResDtos,
                 page.getNumber(),
                 page.getTotalPages(),
                 page.getTotalElements(),
                 page.isLast()
         );
     }
+
+    // 내가 쓴 글
+    public BoardPageResDto getMyBoards(Long memberId, Pageable pageable) {
+        Page<Board> page = boardRepository.findByMemberIdAndDelYnOrderByCreatedTimeDesc(memberId, "N", pageable);
+        List<BoardListResDto> boardListResDtos = page.getContent().stream().map(this::boardListResDto).toList();
+
+        return new BoardPageResDto(
+                boardListResDtos,
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isLast()
+        );
+    }
+
+    // 댓글 단 글
+    public BoardPageResDto getMyCommented(Long memberId, Pageable pageable) {
+        Page<Board> page = boardRepository.findBoardsByMyComments(memberId, pageable);
+        List<BoardListResDto> boardListResDtos = page.getContent().stream().map(this::boardListResDto).toList();
+
+        return new BoardPageResDto(
+                boardListResDtos,
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isLast()
+        );
+    }
+
 
 }
