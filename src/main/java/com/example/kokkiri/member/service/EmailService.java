@@ -38,7 +38,7 @@ public class EmailService {
             helper.setSubject("[Kokkiri] 이메일 인증 코드입니다.");
 
             String htmlContent = "<div style='font-family: Arial, sans-serif; font-size: 16px;'>"
-                    + "<h2 style='color: #4CAF50;'>Kokkiri 인증 코드</h2>"
+                    + "<h2 style='color: blue;'>Kokkiri 인증 코드</h2>"
                     + "<p>아래 인증 코드를 3분 이내에 입력해주세요.</p>"
                     + "<div style='font-size: 24px; font-weight: bold; margin-top: 10px;'>"
                     + code
@@ -93,7 +93,7 @@ public class EmailService {
         return "true".equals(verified);
     }
 
-    //Redis에 인증 코드 저장 (3분 유지)
+    //Redis에 인증 코드 저장 (1분 유지)
     private void saveCodeToRedis(String email, String code, String type) {
         String key = getCodeKey(email, type);
         redisTemplate.opsForValue().set(key, code, Duration.ofMinutes(1));

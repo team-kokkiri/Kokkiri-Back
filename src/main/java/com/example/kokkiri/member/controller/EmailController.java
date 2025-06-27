@@ -56,8 +56,7 @@ public class EmailController {
     @PostMapping("/verify")
     public ResponseEntity<String> verifyCode(@RequestParam String email,
                                              @RequestParam String code,
-                                             @RequestParam String type,
-                                             HttpSession httpdSession) {
+                                             @RequestParam String type) {  // HttpSession 제거
 
         boolean isValid = emailService.verifyCode(email, code, type);
 
@@ -65,12 +64,9 @@ public class EmailController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("인증 코드가 올바르지 않거나 만료되었습니다.");
         }
 
-        // 인증 성공 시
         try {
-            // 이메일 인증 완료 Redis 키 생성 및 확인
             String verifiedKey = "email:verified:" + type + ":" + email;
 
-            // 회원가입 인증일 경우에만 회원 저장 처리
             if ("signup".equals(type)) {
                 String signupKey = "email:temp:signup:" + email;
                 String signupJson = redisTemplate.opsForValue().get(signupKey);
@@ -79,15 +75,24 @@ public class EmailController {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("회원가입 정보가 만료되었거나 존재하지 않습니다.");
                 }
 
-                // JSON → DTO 역직렬화
                 MemberSignupReqDto signupDto = objectMapper.readValue(signupJson, MemberSignupReqDto.class);
 
-                // DB 저장
-                memberService.signup(signupDto,httpdSession);
+                // Redis에서 teamCode 꺼내기
+                String redisTeamCode = redisTemplate.opsForValue().get("state:teamCode:" + signupDto.getState());
+                if (redisTeamCode == null || redisTeamCode.isBlank()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("팀 코드가 존재하지 않습니다.");
+                }
+
+                // signupDto에 teamCode 세팅 (기존에 없으면 setter 또는 생성자 활용)
+                signupDto.setTeamCode(redisTeamCode);
+
+                // HttpSession 대신 teamCode가 포함된 DTO로 signup 호출
+                memberService.signup(signupDto);
 
                 // Redis 키 정리
-                redisTemplate.delete(signupKey);    // 임시 가입 정보
-                redisTemplate.delete(verifiedKey);  // 인증 완료 플래그
+                redisTemplate.delete(signupKey);
+                redisTemplate.delete(verifiedKey);
+                redisTemplate.delete("teamCode:" + email);  // 팀코드도 삭제
             }
 
             return ResponseEntity.ok("이메일 인증 및 회원가입이 완료되었습니다.");
@@ -96,4 +101,5 @@ public class EmailController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("회원가입 처리 중 오류가 발생했습니다.");
         }
     }
+
 }
