@@ -13,4 +13,5 @@ public class MemberSignupReqDto {
     private String password;
     private String nickname;
     private String teamCode;
+    private String state;
 }

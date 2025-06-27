@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,18 +34,21 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
+    private final StringRedisTemplate redisTemplate;
 
-    // 회원가입
-    public void signup(MemberSignupReqDto request, HttpSession session) {
+    // ✅ 회원가입 - state 기반 teamCode 조회로 변경
+    public void signup(MemberSignupReqDto request) {
         // 1. 이메일 인증 확인
         if (!emailService.isEmailVerified(request.getEmail(), "signup")) {
             throw new IllegalStateException("이메일 인증이 필요합니다.");
         }
 
-        // 2. 세션에서 teamCode 확인
-        String teamCode = (String) session.getAttribute("teamCode");
+        // 2. Redis에서 state로 teamCode 조회
+        String state = request.getState();
+        String teamCode = redisTemplate.opsForValue().get("state:teamCode:" + state);
+
         if (teamCode == null || teamCode.isBlank()) {
-            throw new IllegalStateException("세션에 저장된 팀 코드가 없습니다.");
+            throw new IllegalStateException("유효하지 않거나 만료된 state입니다.");
         }
 
         // 3. 팀코드 유효성 확인
@@ -65,7 +69,7 @@ public class MemberService {
             nickname = generateRandomNickname();
         }
 
-        // 7. 이미지 랜덤 생성
+        // 7. 랜덤 프로필 이미지 선택
         String randomProfileImage = DEFAULT_PROFILE_IMAGES.get(
                 new Random().nextInt(DEFAULT_PROFILE_IMAGES.size()));
 
@@ -81,8 +85,8 @@ public class MemberService {
 
         memberRepository.save(member);
 
-        // 9. 세션에서 teamCode 제거
-        session.removeAttribute("teamCode");
+        // 9. Redis에서 사용한 state 제거 (선택)
+        redisTemplate.delete("state:teamCode:" + state);
     }
 
     // 로그인

@@ -49,10 +49,16 @@ public class MemberController {
     public ResponseEntity<String> signup(@RequestBody MemberSignupReqDto request, HttpSession session) {
         try {
             String email = request.getEmail();
-            String teamCode = (String) session.getAttribute("teamCode");
+            String state = request.getState();
 
+            if (state == null || state.isBlank()) {
+                return ResponseEntity.badRequest().body("state가 없습니다.");
+            }
+
+
+            String teamCode = redisTemplate.opsForValue().get("state:teamCode:" + state);
             if (teamCode == null || teamCode.isBlank()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("세션에 저장된 팀 코드가 없습니다.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("teamCode가 존재하지 않거나 만료되었습니다.");
             }
 
             // Redis에 회원 정보 임시 저장
@@ -64,7 +70,7 @@ public class MemberController {
                 dataToSave.setEmail(email);
                 dataToSave.setPassword(request.getPassword());
                 dataToSave.setNickname(request.getNickname());
-                dataToSave.setTeamCode(teamCode); // 세션에서 읽은 teamCode
+                dataToSave.setState(state); // state에서 읽은 팀코드
 
                 String json = objectMapper.writeValueAsString(dataToSave);
                 redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(10)); // 10분 저장
