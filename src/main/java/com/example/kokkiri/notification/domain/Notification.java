@@ -34,9 +34,9 @@ public class Notification {
 
     private LocalDateTime actionCreatedAt;
 
-    @Column(length = 1)
-    @Builder.Default
-    private String isRead = "N";
+//    @Column(length = 1)
+//    @Builder.Default
+//    private String isRead = "N";
 
     @Column(length = 1)
     @Builder.Default
@@ -52,9 +52,9 @@ public class Notification {
 //
 //    }
 
-    public void updateIsRead(){
-        this.isRead = "Y";
-    }
+//    public void updateIsRead(){
+//        this.isRead = "Y";
+//    }
 
     public void delete(){
         this.delYn = "Y";

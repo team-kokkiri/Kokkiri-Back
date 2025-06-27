@@ -63,7 +63,7 @@ public class InitialDataLoader implements CommandLineRunner {
 
         createTestUser("admin@naver.com", "admin", Role.ADMIN, testTeam);
 
-        for (int i = 1; i <= 30; i++) {
+        for (int i = 1; i <= 10; i++) {
             createTestUser("test" + i + "@naver.com", "test" + i, Role.USER, testTeam);
         }
 

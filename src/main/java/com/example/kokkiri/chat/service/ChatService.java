@@ -326,7 +326,7 @@ public class ChatService {
         notificationService.send(invitedMember, NotificationType.INVITATION, content, url, invitation.getId(), invitation.getCreatedTime());
     }
 
-    public void acceptInvitation(Long invitationId) {
+    public Long acceptInvitation(Long invitationId) {
         ChatInvitation invitation = chatInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new EntityNotFoundException("초대를 찾을 수 없습니다."));
 
@@ -348,9 +348,13 @@ public class ChatService {
         // 5. 알림 처리: isRead = 'Y', delYn = 'Y'로 변경
         // invitationId를 사용하여 관련 알림을 찾음
         notificationService.findByInvitationId(invitationId).ifPresent(notification -> {
-            notification.updateIsRead();
+//            notification.updateIsRead();
             notification.delete();
         });
+
+        Long joinedRoomId = invitation.getChatRoom().getId();
+
+        return joinedRoomId;
     }
 
     public void rejectInvitation(Long invitationId) {
@@ -359,7 +363,7 @@ public class ChatService {
 
         invitation.delete();
         notificationService.findByInvitationId(invitationId).ifPresent(notification -> {
-            notification.updateIsRead();
+//            notification.updateIsRead();
             notification.delete();
         });
     }
