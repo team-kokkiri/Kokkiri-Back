@@ -4,11 +4,14 @@ import com.example.kokkiri.team.repository.TeamRepository;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -17,6 +20,7 @@ import java.util.Map;
 public class TeamController {
 
     private final TeamRepository teamRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     // 1. 반 코드 유효성 검증
     @GetMapping("/verify")
@@ -27,30 +31,24 @@ public class TeamController {
         return ResponseEntity.ok(response);
     }
 
-    // 2. 반 코드 세션 저장
-    @PostMapping("/session")
-    public ResponseEntity<?> saveTeamCodeToSession(@RequestBody Map<String, String> body, HttpSession session) {
+    // 2. 반 코드 state 저장
+    @PostMapping("/state")
+    public ResponseEntity<Map<String, String>> generateStateFromTeamCode(@RequestBody Map<String, String> body) {
         String teamCode = body.get("teamCode");
-
         if (teamCode == null || teamCode.isBlank()) {
-            return ResponseEntity.badRequest().body("teamCode가 비어있습니다.");
+            return ResponseEntity.badRequest().body(Map.of("error", "teamCode는 필수입니다."));
         }
 
-        session.setAttribute("teamCode", teamCode);
-        return ResponseEntity.ok().build();
-    }
-
-    // 세션에서 teamCode 조회
-    @GetMapping("/session")
-    public ResponseEntity<?> getTeamCodeFromSession(HttpSession session) {
-        String teamCode = (String) session.getAttribute("teamCode");
-
-        if (teamCode == null) {
-            return ResponseEntity.status(400).body("세션에 저장된 팀 코드가 없습니다.");
+        boolean exists = teamRepository.findByTeamCode(teamCode).isPresent();
+        if (!exists) {
+            return ResponseEntity.badRequest().body(Map.of("error", "팀 코드가 유효하지 않습니다."));
         }
 
-        Map<String, String> response = new HashMap<>();
-        response.put("teamCode", teamCode);
-        return ResponseEntity.ok(response);
+        String state = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set("state:teamCode:" + state, teamCode, Duration.ofMinutes(10));
+        log.info("Redis에 저장: key=state:teamCode:{}, value={}", state, teamCode);
+
+        return ResponseEntity.ok(Map.of("state", state));
     }
+
 }

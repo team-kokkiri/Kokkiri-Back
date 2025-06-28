@@ -18,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -52,7 +54,7 @@ public class CommentService {
 
         // 댓글이 질문글의 첫 댓글일 경우 -> 질문글 아님으로 변경
         if (board.getQuestionYn()) {
-            Long commentCount = commentRepository.countAllByBoardId(boardId);
+            Long commentCount = commentRepository.countAllNotDeletedByBoardId(board.getId());
 
             // 대댓글이 아니고 첫 댓글일 때만 변경
             if (commentCreateReqDto.getParentId() == null && commentCount == 1) {
@@ -104,7 +106,7 @@ public class CommentService {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
         comment.markDeleted();
-        commentRepository.save(comment);
+        commentRepository.saveAndFlush(comment);
     }
 
     // 댓글, 답글 좋아요
@@ -139,7 +141,18 @@ public class CommentService {
                     saveCommentLike.getCreatedTime()
             );
         }
-
     }
+
+    // 댓글 수 카운트
+    public Long getVisibleCommentCount(Long boardId) {
+        List<Comment> comments = commentRepository.findByBoardId(boardId);
+        return comments.stream()
+                .filter(comment -> {
+                    if (comment.getDelYn().equals("N")) return true;
+                    return comment.getReplies().stream().anyMatch(reply -> reply.getDelYn().equals("N"));
+                })
+                .count();
+    }
+
 
 }

@@ -10,11 +10,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -24,68 +27,63 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final RefreshTokenService refreshTokenService;
     private final MemberRepository memberRepository;
     private final TeamRepository teamRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final String frontendBaseUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getEmail();
-        String avatar = oAuth2User.getAvatar();
 
-        String teamCode = (String) request.getSession().getAttribute("teamCode");
-        if (teamCode == null || teamCode.isEmpty()) {
-            response.sendRedirect("http://localhost:8080/teamcode-verify");
-            return;
-        }
+        Optional<Member> memberOpt = memberRepository.findByEmail(email);
 
-        Optional<Team> optionalTeam = teamRepository.findByTeamCode(teamCode);
-        if (optionalTeam.isEmpty()) {
-            response.sendRedirect("http://localhost:8080/teamcode-verify");
-            return;
-        }
+        if (memberOpt.isPresent()) {
+            // 기존 회원이면 JWT 발급 → 메인 페이지로 리디렉트
+            Member member = memberOpt.get();
 
-        Team team = optionalTeam.get();
-        Optional<Member> optionalMember = memberRepository.findByEmail(email);
+            String accessToken = jwtUtil.generateToken(email, member.getRole().name(), true, member.getNickname(), member.getAvatar());
+            String refreshToken = jwtUtil.generateToken(email, member.getRole().name(), false, member.getNickname(), member.getAvatar());
 
-        if (optionalMember.isPresent()) {
-            Member member = optionalMember.get();
-
-            if (member.getTeam() == null) {
-                member.setTeam(team);
-                memberRepository.save(member);
-            }
-
-            String role = member.getRole() != null ? member.getRole().name() : "ROLE_USER";
-            String accessToken = jwtUtil.generateToken(email, role, true, member.getNickname(),avatar);
-            String refreshToken = jwtUtil.generateToken(email, role, false, member.getNickname(), avatar);
             long refreshTokenExpiry = jwtUtil.getExpiration(refreshToken);
-
             refreshTokenService.saveRefreshToken(email, refreshToken, refreshTokenExpiry);
 
-            // 리프레시 토큰을 HttpOnly 쿠키로 설정
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
-                    .secure(true)  // HTTPS 환경에서는 true로 변경 필요
+                    .secure(true)
                     .path("/")
                     .maxAge(refreshTokenExpiry / 1000)
                     .sameSite("Strict")
                     .build();
 
-            response.addHeader("Set-Cookie", cookie.toString());
+            response.setHeader("Set-Cookie", refreshCookie.toString());
 
-            // 리프레시 토큰은 URL에서 제거 액세스 토큰과 사용자 정보만 쿼리에 담아서 리다이렉트
-            String redirectUrl = "http://localhost:8080/oauth2-redirect"
-                    + "?accessToken=" + accessToken
-                    + "&email=" + email
-                    + "&role=" + role
-                    + "&avatar=" + avatar;
-
+            String redirectUrl = frontendBaseUrl + "/main-page?accessToken=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8);
             response.sendRedirect(redirectUrl);
-            return;
-        }
+        } else {
+            // ✅ 신규 회원이면 state 파라미터로 Redis에서 teamCode 확인 후 리다이렉트
+            String state = request.getParameter("state");
+            System.out.println("OAuth2 콜백에서 받은 state: " + state);
 
-        // 신규 회원일 경우 팀코드 입력 페이지로 리다이렉트
-        response.sendRedirect("http://localhost:8080/teamcode-verify");
+            if (state == null || state.isBlank()) {
+                throw new IllegalArgumentException("state 파라미터가 누락되었습니다.");
+            }
+
+            String teamCode = redisTemplate.opsForValue().get("state:teamCode:" + state);
+            System.out.println("Redis에서 조회한 팀코드: " + teamCode);
+            if (teamCode == null) {
+                throw new IllegalArgumentException("Redis에서 팀코드를 찾을 수 없습니다. (state=" + state + ")");
+            }
+
+            // ✅ 해당 teamCode가 실제 존재하는지 PostgreSQL에서 체크
+            Optional<Team> teamOpt = teamRepository.findByTeamCode(teamCode);
+            if (teamOpt.isEmpty()) {
+                throw new IllegalArgumentException("유효하지 않은 팀코드입니다.");
+            }
+
+            // ✅ 정상 처리: 프론트엔드로 리디렉트 (state만 포함 → 프론트가 다시 Redis에서 teamCode 안심하고 사용 가능)
+            String redirectUrl = frontendBaseUrl + "/signup?state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
+            response.sendRedirect(redirectUrl);
+        }
     }
 }
