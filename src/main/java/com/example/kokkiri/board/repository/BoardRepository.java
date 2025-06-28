@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -110,5 +111,9 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                     """,
             nativeQuery = true)
     Page<Board> findBoardsByMyComments(@Param("memberId") Long memberId, Pageable pageable);
+    
+    // 특정 날짜 이후 작성된 게시글 수 조회 (오늘 작성된 게시글)
+    @Query("SELECT COUNT(b) FROM Board b WHERE b.createdTime >= :startDate AND b.delYn = 'N'")
+    long countByCreatedTimeAfter(@Param("startDate") LocalDateTime startDate);
 
 }
