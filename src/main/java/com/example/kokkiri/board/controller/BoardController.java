@@ -14,7 +14,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -41,11 +43,22 @@ public class BoardController {
     }
 
     // 게시글 리스트조회
-    @GetMapping("/list/{typeId}/simple")
-    public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
-        List<BoardListResDto> result = (typeId == 3L)
-                ? boardService.getBestBoardsFromFreeBoard() // 자유게시판 기반 BEST 글 조회
-                : boardService.getBoardListMerged(typeId);  // 일반 리스트
+//    @GetMapping("/list/{typeId}/simple")
+//    public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
+//        List<BoardListResDto> result = (typeId == 3L)
+//                ? boardService.getBestBoardsFromFreeBoard() // 자유게시판 기반 BEST 글 조회
+//                : boardService.getBoardListMerged(typeId);  // 일반 리스트
+//        return ResponseEntity.ok(result);
+//    }
+
+    // 메인페이지 게시글 리스트조회
+    @GetMapping("/main")
+    public ResponseEntity<Map<String, List<BoardListResDto>>> getMainBoardList() {
+        Map<String, List<BoardListResDto>> result = new HashMap<>();
+        result.put("notice", boardService.getBoardListMerged(4L)); // 공지사항
+        result.put("free", boardService.getBoardListMerged(1L));   // 자유게시판
+        result.put("best", boardService.getBestBoardsFromFreeBoard());    // BEST
+
         return ResponseEntity.ok(result);
     }
 
