@@ -3,6 +3,7 @@ package com.example.kokkiri.common.config;
 import com.example.kokkiri.common.jwt.JwtAuthenticationFilter;
 import com.example.kokkiri.common.jwt.JwtUtil;
 import com.example.kokkiri.common.jwt.RefreshTokenService;
+import com.example.kokkiri.common.oauth.CustomAuthorizationRequestResolver;
 import com.example.kokkiri.common.oauth.CustomOAuth2UserService;
 import com.example.kokkiri.common.oauth.OAuth2AuthenticationSuccessHandler;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -18,6 +19,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -42,6 +44,7 @@ public class SecurityConfig {
     private final TeamRepository teamRepository;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
 
     @Bean
@@ -79,6 +82,15 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authorization ->
+                                authorization
+                                        .authorizationRequestResolver(
+                                                new CustomAuthorizationRequestResolver(
+                                                        clientRegistrationRepository,
+                                                        "/oauth2/authorization"
+                                                )
+                                        )
+                        )
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)) // 사용자 정보 로드
                         .successHandler(oAuth2AuthenticationSuccessHandler())
