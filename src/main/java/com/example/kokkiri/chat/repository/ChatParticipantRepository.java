@@ -74,7 +74,7 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     LEFT JOIN ChatParticipant o ON o.chatRoom = cp.chatRoom AND o.member != :member
     WHERE cp.chatRoom.id IN :roomIds AND cp.member = :member
     AND (cp.chatRoom.isGroupChat = 'Y' OR o.member IS NOT NULL)
-    GROUP BY cp.chatRoom.id, cp.chatRoom.name, cp.chatRoom.isGroupChat, o.member.nickname
+    GROUP BY cp.chatRoom.id, cp.chatRoom.name, cp.chatRoom.isGroupChat
     """)
     List<MyChatListResDto> findChatRoomDetailsByRoomIds(@Param("member") Member member, @Param("roomIds") List<Long> roomIds);
 

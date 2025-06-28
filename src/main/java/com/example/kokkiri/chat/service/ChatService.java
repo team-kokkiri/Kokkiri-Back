@@ -322,7 +322,7 @@ public class ChatService {
         chatInvitationRepository.save(invitation);
 
         String content = inviter.getNickname() + "님이 <" + chatRoom.getName() + "> 그룹 채팅에 초대하였습니다.";
-        String url = "/chatPage/" + chatRoom.getId();
+        String url = "/chat/" + chatRoom.getId();
         notificationService.send(invitedMember, NotificationType.INVITATION, content, url, invitation.getId(), invitation.getCreatedTime());
     }
 
