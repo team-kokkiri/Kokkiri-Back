@@ -36,23 +36,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Long countByReceiverIdAndDelYn(Long memberId, String delYn);
 
+    @Query("SELECT count(n) FROM Notification n WHERE n.receiver = :receiver AND n.delYn = :delYn AND n.notificationType != 'CHAT'")
+    long countUnreadNonChatNotifications(@Param("receiver") Member receiver, @Param("delYn") String delYn);
+
+
     Slice<Notification> findByReceiverIdAndDelYnAndIdLessThanOrderByIdDesc(Long receiverId, String delYn, Long lastId, Pageable pageable);
 
     Optional<Notification> findByInvitationId(Long invitationId);
 
-    // ✨ Enum 타입 사용 및 반환타입 int로 통일
     @Transactional
     @Modifying
     @Query("UPDATE Notification n SET n.delYn = 'Y' WHERE n.receiver = :member AND n.notificationType = :type")
     int deleteAllNotificationsByType(@Param("member") Member member, @Param("type") NotificationType type);
 
-    // ✨ 반환 타입을 int로 변경하고 Enum 타입 사용
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Notification n SET n.delYn = 'Y' WHERE n.receiver = :member AND n.notificationType <> com.example.kokkiri.notification.domain.NotificationType.CHAT")
     int deleteAllNonChatNotificationsForUser(@Param("member") Member member);
 
-    // ✨ 반환 타입을 int로 변경하여 안정성 확보
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Notification n SET n.delYn = 'Y' WHERE n.id = :notificationId AND n.receiver = :member")

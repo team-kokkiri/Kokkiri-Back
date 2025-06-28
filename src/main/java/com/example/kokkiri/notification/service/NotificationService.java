@@ -17,7 +17,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.MediaType;
-// ✨ TaskScheduler 관련 import 제거
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -51,13 +50,10 @@ public class NotificationService {
         String emitterId = member.getId() + "_" + System.currentTimeMillis();
         SseEmitter sseEmitter = emitterRepository.save(emitterId, new SseEmitter(DEFAULT_TIMEOUT));
 
-        // ✨ SSE 연결 콜백 설정 (스케줄러 관련 로직 제거)
         setupSseCallbacks(sseEmitter, emitterId);
 
         // 초기 연결 시 클라이언트에게 연결 성공 메시지 전송
         sendConnectionComment(sseEmitter, member.getId(), emitterId);
-
-        // ✨ Heartbeat 전송 로직 완전 제거
 
         // 유실된 이벤트가 있다면 전송
         resendLostEvents(sseEmitter, lastEventId, member.getId());
@@ -95,7 +91,8 @@ public class NotificationService {
             newLastId = dtos.get(dtos.size() - 1).getId();
         }
 
-        Long totalUnreadCount = notificationRepository.countByReceiverIdAndDelYn(member.getId(), "N");
+        // CHAT을 제외한 나머지 알림의 개수
+        Long totalUnreadCount = notificationRepository.countUnreadNonChatNotifications(member, "N");
 
         return new NotificationPageResDto(dtos, notificationSlice.hasNext(), newLastId, totalUnreadCount);
     }
@@ -153,17 +150,20 @@ public class NotificationService {
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
     }
 
-    // ✨ setupSseCallbacks 메서드에서 스케줄러 관련 파라미터 및 로직 제거
     private void setupSseCallbacks(SseEmitter sseEmitter, String emitterId) {
         Runnable cleanup = () -> {
-            emitterRepository.deleteById(emitterId);
+            try { // ✨ 동일하게 안전장치 추가
+                emitterRepository.deleteById(emitterId);
+            } catch (Exception e) {
+                log.error("Emitter 리소스 정리 중 에러 발생 (emitterId: {})", emitterId, e);
+            }
             log.info("Cleaned up resources for emitterId: {}", emitterId);
         };
 
         sseEmitter.onCompletion(cleanup);
         sseEmitter.onTimeout(cleanup);
         sseEmitter.onError(e -> {
-            log.error("SSE Error for emitterId: {}", emitterId, e);
+            log.info("SSE Error for emitterId: {}", emitterId, e);
             cleanup.run();
         });
     }
@@ -173,7 +173,7 @@ public class NotificationService {
             sseEmitter.send(SseEmitter.event().comment("EventStream Connected. [memberId=" + memberId + "]"));
             log.info("SSE connection comment sent. emitterId: {}", emitterId);
         } catch (IOException e) {
-            log.warn("Failed to send connection comment for emitterId: {}", emitterId, e);
+            log.info("Failed to send connection comment for emitterId: {}", emitterId, e);
             emitterRepository.deleteById(emitterId);
         }
     }
@@ -198,8 +198,13 @@ public class NotificationService {
 
             log.info("SSE event sent. emitterId: {}, data: {}", emitterId, payload);
         } catch (IOException e) {
-            log.error("Failed to send SSE event for emitterId: {}", emitterId, e);
-            emitterRepository.deleteById(emitterId);
+            log.info("Failed to send SSE event for emitterId: {}", emitterId, e);
+            // 리소스를 정리하는 과정에서 발생할 수 있는 모든 예외를 잡아서 처리합니다.
+            try {
+                emitterRepository.deleteById(emitterId);
+            } catch (Exception cleanupException) {
+                log.error("SSE emitter 정리 중 예외 발생. emitterId: {}", emitterId, cleanupException);
+            }
         }
     }
 

@@ -64,7 +64,7 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     @Query("""
     SELECT new com.example.kokkiri.chat.dto.MyChatListResDto(
         cp.chatRoom.id,
-        CASE WHEN cp.chatRoom.isGroupChat = 'Y' THEN cp.chatRoom.name ELSE o.member.nickname END,
+        CASE WHEN cp.chatRoom.isGroupChat = 'Y' THEN cp.chatRoom.name ELSE MIN(o.member.nickname) END,
         cp.chatRoom.isGroupChat,
         (SELECT COUNT(rs) FROM ReadStatus rs WHERE rs.chatRoom = cp.chatRoom AND rs.member = :member AND rs.isRead = false),
         (SELECT cm.content FROM ChatMessage cm WHERE cm.chatRoom = cp.chatRoom ORDER BY cm.createdTime DESC LIMIT 1),
@@ -77,6 +77,5 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     GROUP BY cp.chatRoom.id, cp.chatRoom.name, cp.chatRoom.isGroupChat
     """)
     List<MyChatListResDto> findChatRoomDetailsByRoomIds(@Param("member") Member member, @Param("roomIds") List<Long> roomIds);
-
 
 }

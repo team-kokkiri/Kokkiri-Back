@@ -51,7 +51,7 @@ public class ChatService {
         this.notificationRepository = notificationRepository;
     }
 
-    public ChatMessageDto saveMessage(Long roomId, ChatMessageDto chatMessageReqDto){
+    private ChatMessageDto saveMessage(Long roomId, ChatMessageDto chatMessageReqDto){
         // 채팅방 조회
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()-> new EntityNotFoundException("room cannot be found"));
 
@@ -87,7 +87,7 @@ public class ChatService {
                 .build();
     }
 
-    public void sendChatNotification(Long roomId, String senderEmail, LocalDateTime actionCreatedAt){
+    private void sendChatNotification(Long roomId, String senderEmail, LocalDateTime actionCreatedAt){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()-> new EntityNotFoundException("room cannot be found"));
         Member sender = memberRepository.findByEmail(senderEmail).orElseThrow(()-> new EntityNotFoundException("member cannot be found"));
 
@@ -123,6 +123,7 @@ public class ChatService {
         chatParticipantRepository.save(chatParticipant);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatRoomListResDto> getGroupChatRooms(){
         List<ChatRoom> chatRooms = chatRoomRepository.findByIsGroupChat("Y");
         List<ChatRoomListResDto> dtos = new ArrayList<>();
@@ -162,6 +163,7 @@ public class ChatService {
         chatParticipantRepository.save(chatParticipant);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatMessageDto> getChatHistory(Long roomId){
         // 내가 해당 채팅방의 참여자가 아닐 경우 에러 발생
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
@@ -191,6 +193,7 @@ public class ChatService {
         return chatMessageDtos;
     }
 
+    @Transactional(readOnly = true)
     public boolean isRoomParticipant(String email, Long roomId){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
         Member member = memberRepository.findByEmail(email).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
@@ -214,7 +217,7 @@ public class ChatService {
         }
     }
 
-
+    @Transactional(readOnly = true)
     public Page<MyChatListResDto> getMyChatRooms(Pageable pageable) {
         // 1. 현재 사용자 정보 조회
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
@@ -367,4 +370,55 @@ public class ChatService {
             notification.delete();
         });
     }
+
+    /**
+     * STOMP 컨트롤러로부터 메시지 처리 요청을 받아,
+     * 메시지 저장과 알림 발송을 하나의 트랜잭션으로 처리하는 통합 메소드.
+     */
+    @Transactional
+    public ChatMessageDto processAndSaveMessage(Long roomId, ChatMessageDto chatMessageReqDto) {
+        // 1. 필요한 엔티티 조회
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " + roomId));
+        Member sender = memberRepository.findByEmail(chatMessageReqDto.getSenderEmail())
+                .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + chatMessageReqDto.getSenderEmail()));
+
+        // 2. 메시지 엔티티 생성 및 저장
+        ChatMessage chatMessage = ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .member(sender)
+                .content(chatMessageReqDto.getMessage())
+                .build();
+        ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
+
+        // 3. 채팅 참여자들에게 '읽음 상태' 생성
+        List<ChatParticipant> chatParticipants = chatParticipantRepository.findByChatRoom(chatRoom);
+        for (ChatParticipant participant : chatParticipants) {
+            ReadStatus readStatus = ReadStatus.builder()
+                    .chatRoom(chatRoom)
+                    .member(participant.getMember())
+                    .chatMessage(savedMessage)
+                    .isRead(participant.getMember().equals(sender)) // 보낸 사람만 즉시 읽음 처리
+                    .build();
+            readStatusRepository.save(readStatus);
+        }
+
+        // 4. 다른 참여자에게 알림 전송
+        String url = "/my/chat/page"; // 혹은 특정 채팅방 URL
+        for (ChatParticipant participant : chatParticipants) {
+            if (!participant.getMember().equals(sender)) {
+                notificationService.send(participant.getMember(), NotificationType.CHAT, "new chat", url, null, savedMessage.getCreatedTime());
+            }
+        }
+
+        // 5. 컨트롤러와 클라이언트에게 전달할 최종 DTO 반환
+        return ChatMessageDto.builder()
+                .roomId(chatRoom.getId())
+                .message(savedMessage.getContent())
+                .senderEmail(sender.getEmail())
+                .createdTime(savedMessage.getCreatedTime())
+                .build();
+
+    }
 }
+
