@@ -182,29 +182,46 @@ public class MemberController {
 
     // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshAccessToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        log.info(">>> /refresh API 호출됨 - 리프레시 토큰 재발급 요청" + refreshToken);
+    public ResponseEntity<?> refreshAccessToken(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken
+    ) {
+        log.info("[TokenRefresh] /refresh 호출, 쿠키 refreshToken: {}", refreshToken);
 
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
+            log.warn("[TokenRefresh] Refresh token이 유효하지 않음");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token이 유효하지 않습니다.");
         }
 
         String email = jwtUtil.getEmailFromToken(refreshToken);
         String storedRefreshToken = refreshTokenService.getRefreshToken(email);
-        log.info("📦 전달받은 RefreshToken: {}", refreshToken);
-
 
         if (!refreshToken.equals(storedRefreshToken)) {
+            log.warn("저장된 Refresh token과 일치하지 않음");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("저장된 Refresh token과 일치하지 않습니다.");
         }
 
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
-        String newAccessToken = jwtUtil.generateToken(email, member.getRole().name(), true, member.getNickname(), null);
-        log.info("✅ 새 AccessToken 발급 완료: {}", newAccessToken);
 
-        return ResponseEntity.ok(new JwtResponse(newAccessToken, null, email,member.getRole().name(),null));
+        String newAccessToken = jwtUtil.generateToken(
+                email,
+                member.getRole().name(),
+                true,
+                member.getNickname(),
+                member.getAvatar()
+        );
+
+        log.info("[TokenRefresh] AccessToken 재발급 완료: {} (user: {}, nickname: {})", newAccessToken.substring(0, 30) + "...", email, member.getNickname());
+
+        return ResponseEntity.ok(new JwtResponse(
+                newAccessToken,
+                null,
+                email,
+                member.getRole().name(),
+                member.getAvatar() // 혹시 response에 avatar도 넣는다면
+        ));
     }
+
 
     //비밀번호 재설정
     @PostMapping("/reset")
