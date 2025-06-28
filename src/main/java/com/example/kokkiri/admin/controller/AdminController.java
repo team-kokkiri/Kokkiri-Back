@@ -1,9 +1,13 @@
 package com.example.kokkiri.admin.controller;
 
 import com.example.kokkiri.admin.dto.AdminDashboardResDto;
+import com.example.kokkiri.admin.dto.AdminMemberListResDto;
 import com.example.kokkiri.admin.service.AdminService;
 import com.example.kokkiri.common.dto.CommonResDto;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +30,7 @@ public class AdminController {
      * - 오늘 신고 건수 (추후 구현)
      */
     @GetMapping("/dashboard")
+    @PreAuthorize("hasRole('ADMIN')")
     // 관리자 대시보드 데이터 조회 - 관리자 페이지에서 보여줄 통계 데이터를 조회합니다.
     public ResponseEntity<CommonResDto> getDashboardData() {
         try {
@@ -36,6 +41,30 @@ public class AdminController {
             return new ResponseEntity<>(resDto, HttpStatus.OK);
         } catch (Exception e) {
             CommonResDto resDto = new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "관리자 대시보드 데이터 조회 실패: " + e.getMessage(), null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 관리자용 전체 회원 목록 조회 (본인 제외)
+     * - 페이징 지원
+     * - 최신 가입순 정렬
+     */
+    @GetMapping("/members")
+    @PreAuthorize("hasRole('ADMIN')")
+    // 관리자용 전체 회원 목록 조회 - 본인을 제외한 전체 회원 목록을 페이징으로 조회합니다.
+    public ResponseEntity<CommonResDto> getAllMembers(
+            @PageableDefault(page = 0, size = 10) Pageable pageable
+    ) {
+        try {
+            Page<AdminMemberListResDto> membersPage = adminService.getAllMembers(pageable);
+            
+            CommonResDto resDto = new CommonResDto(HttpStatus.OK, "회원 목록 조회 성공", membersPage);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.OK);
+        } catch (Exception e) {
+            CommonResDto resDto = new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "회원 목록 조회 실패: " + e.getMessage(), null);
                     
             return new ResponseEntity<>(resDto, HttpStatus.INTERNAL_SERVER_ERROR);
         }
