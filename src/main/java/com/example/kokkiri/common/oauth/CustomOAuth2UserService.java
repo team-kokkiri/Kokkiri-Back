@@ -62,50 +62,53 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // 2. 기존 회원이면 바로 리턴
         Optional<Member> existingUser = memberRepository.findByEmail(email);
         if (existingUser.isPresent()) {
-            String avatar = existingUser.get().getAvatar();
+            Member member = existingUser.get();
             return new CustomOAuth2User(
                     oAuth2User.getAttributes(),
                     nameAttributeKey,
                     email,
                     registrationId,
-                    avatar
+                    member.getAvatar(),
+                    false
             );
         }
 
-        // 3. 신규 회원 - Redis에서 state로 팀코드 조회
+        // 3. 신규 회원 → state 값으로 teamCode 조회 시도
         String state = request.getParameter("state");
-        if (state == null || state.isBlank()) {
-            throw new RuntimeException("state 파라미터가 누락되었습니다.");
+        String teamCode = null;
+        if (state != null && !state.isBlank()) {
+            teamCode = redisTemplate.opsForValue().get("state:teamCode:" + state);
         }
 
-        String teamCode = redisTemplate.opsForValue().get("state:teamCode:" + state);
-        if (teamCode == null) {
-            throw new RuntimeException("Redis에서 팀코드를 찾을 수 없습니다. (state=" + state + ")");
+        Member newUser = null;
+        if (teamCode != null) {
+            // teamCode가 있으면 Team 조회 후 신규 회원 생성
+            Team team = teamRepository.findByTeamCode(teamCode)
+                    .orElseThrow(() -> new RuntimeException("유효하지 않은 팀 코드입니다."));
+
+            newUser = Member.builder()
+                    .email(email)
+                    .password("")  // OAuth2 회원은 비밀번호 없음
+                    .nickname(nickname)
+                    .role(Role.USER)
+                    .provider(registrationId)
+                    .avatar(selectedAvatar)
+                    .team(team)
+                    .build();
+
+            memberRepository.save(newUser);
+            // Redis에서 사용한 state 삭제
+            redisTemplate.delete("state:teamCode:" + state);
         }
 
-        // 4. 팀코드로 Team 조회
-        Team team = teamRepository.findByTeamCode(teamCode)
-                .orElseThrow(() -> new RuntimeException("팀코드가 유효하지 않습니다."));
-
-        // 5. 신규 회원 생성
-        Member newUser = Member.builder()
-                .email(email)
-                .password("") // OAuth2 회원은 패스워드 없음
-                .nickname(nickname)
-                .role(Role.USER)
-                .provider(registrationId)
-                .avatar(selectedAvatar)
-                .team(team)
-                .build();
-
-        memberRepository.save(newUser);
-
+        // 신규 회원도 isNewUser=false로 반환하여 바로 로그인 처리되도록 변경
         return new CustomOAuth2User(
                 oAuth2User.getAttributes(),
                 nameAttributeKey,
                 email,
                 registrationId,
-                selectedAvatar
+                newUser != null ? newUser.getAvatar() : selectedAvatar,
+                false  // 신규 회원이어도 false 처리
         );
     }
 }

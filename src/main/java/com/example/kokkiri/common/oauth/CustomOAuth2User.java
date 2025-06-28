@@ -19,6 +19,7 @@ public class CustomOAuth2User implements OAuth2User {
     private final String email;
     private final String provider; // OAuth2 제공자 정보
     private final String avatar;
+    private final boolean isNewUser;
 
     @Override
     public Map<String, Object> getAttributes() {
