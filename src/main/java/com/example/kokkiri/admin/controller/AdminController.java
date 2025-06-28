@@ -1,9 +1,12 @@
 package com.example.kokkiri.admin.controller;
 
 import com.example.kokkiri.admin.dto.AdminDashboardResDto;
+import com.example.kokkiri.admin.dto.AdminMemberDetailResDto;
 import com.example.kokkiri.admin.dto.AdminMemberListResDto;
+import com.example.kokkiri.admin.dto.AdminMemberManageReqDto;
 import com.example.kokkiri.admin.service.AdminService;
 import com.example.kokkiri.common.dto.CommonResDto;
+import com.example.kokkiri.member.domain.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,9 +14,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -43,6 +44,96 @@ public class AdminController {
             CommonResDto resDto = new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "관리자 대시보드 데이터 조회 실패: " + e.getMessage(), null);
                     
             return new ResponseEntity<>(resDto, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 특정 회원 상세 정보 조회
+     */
+    @GetMapping("/members/{memberId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    // 특정 회원의 상세 정보를 조회합니다.
+    public ResponseEntity<CommonResDto> getMemberDetail(@PathVariable Long memberId) {
+        try {
+            AdminMemberDetailResDto memberDetail = adminService.getMemberDetail(memberId);
+            
+            CommonResDto resDto = new CommonResDto(HttpStatus.OK, "회원 상세 정보 조회 성공", memberDetail);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.OK);
+        } catch (Exception e) {
+            CommonResDto resDto = new CommonResDto(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * 회원 권한 변경
+     */
+    @PutMapping("/members/{memberId}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    // 회원의 권한을 변경합니다.
+    public ResponseEntity<CommonResDto> changeUserRole(
+            @PathVariable Long memberId,
+            @RequestParam Role role
+    ) {
+        try {
+            adminService.changeUserRole(memberId, role);
+            
+            CommonResDto resDto = new CommonResDto(HttpStatus.OK, "회원 권한 변경 성공", null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.OK);
+        } catch (Exception e) {
+            CommonResDto resDto = new CommonResDto(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * 계정 상태 변경 (활성화/비활성화)
+     */
+    @PutMapping("/members/{memberId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    // 회원의 계정 상태를 변경합니다.
+    public ResponseEntity<CommonResDto> changeAccountStatus(
+            @PathVariable Long memberId,
+            @RequestParam String isActive
+    ) {
+        try {
+            adminService.changeAccountStatus(memberId, isActive);
+            
+            String message = "Y".equals(isActive) ? "계정 활성화 성공" : "계정 비활성화 성공";
+            CommonResDto resDto = new CommonResDto(HttpStatus.OK, message, null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.OK);
+        } catch (Exception e) {
+            CommonResDto resDto = new CommonResDto(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * 회원 종합 관리 (권한 + 계정 상태 동시 변경)
+     */
+    @PutMapping("/members/{memberId}/manage")
+    @PreAuthorize("hasRole('ADMIN')")
+    // 회원의 권한과 계정 상태를 동시에 관리합니다.
+    public ResponseEntity<CommonResDto> manageMember(
+            @PathVariable Long memberId,
+            @RequestBody AdminMemberManageReqDto reqDto
+    ) {
+        try {
+            adminService.manageMember(memberId, reqDto);
+            
+            CommonResDto resDto = new CommonResDto(HttpStatus.OK, "회원 정보 수정 성공", null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.OK);
+        } catch (Exception e) {
+            CommonResDto resDto = new CommonResDto(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+                    
+            return new ResponseEntity<>(resDto, HttpStatus.BAD_REQUEST);
         }
     }
     
