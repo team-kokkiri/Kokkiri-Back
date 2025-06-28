@@ -1,12 +1,14 @@
 package com.example.kokkiri.member.repository;
 
 import com.example.kokkiri.member.domain.Member;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,4 +28,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
             @Param("lastId") Long lastId,
             Pageable pageable
     );
+    
+    // 전체 회원 수 조회
+    long count();
+    
+    // 특정 날짜 이후 가입한 회원 수 조회 (오늘 신규 가입자)
+    @Query("SELECT COUNT(m) FROM Member m WHERE m.createdTime >= :startDate")
+    long countByCreatedTimeAfter(@Param("startDate") LocalDateTime startDate);
+    
+    // 관리자용 전체 회원 목록 조회 (본인 제외, 페이징)
+    @Query("SELECT m FROM Member m WHERE m.id != :currentMemberId ORDER BY m.createdTime DESC")
+    Page<Member> findAllMembersExceptCurrent(@Param("currentMemberId") Long currentMemberId, Pageable pageable);
 }
