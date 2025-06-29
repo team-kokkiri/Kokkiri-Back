@@ -423,7 +423,7 @@ public class ChatService {
     }
 
     @Transactional(readOnly = true)
-    public List<ChatMemberDto> getChatRoomMembers(Long roomId) throws AccessDeniedException {
+    public Page<ChatMemberDto> getChatRoomMembers(Long roomId, Pageable pageable) throws AccessDeniedException {
         // 1. 현재 요청을 보낸 사용자가 이 채팅방의 참여자인지 확인하여 권한을 검증합니다.
         Member currentUser = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> new EntityNotFoundException("현재 로그인된 사용자를 찾을 수 없습니다."));
@@ -436,16 +436,15 @@ public class ChatService {
         }
 
         // 2. 해당 채팅방의 모든 참여자(ChatParticipant) 목록을 가져옵니다.
-        List<ChatParticipant> participants = chatParticipantRepository.findByChatRoom(chatRoom);
+        Page<ChatParticipant> participantsPage = chatParticipantRepository.findByChatRoom(chatRoom, pageable);
 
         // 3. 참여자 목록을 ChatMemberDto 목록으로 변환하여 반환합니다.
-        return participants.stream()
-                .map(participant -> new ChatMemberDto(
-                        participant.getMember().getId(),
-                        participant.getMember().getNickname(),
-                        participant.getMember().getAvatar()
-                ))
-                .collect(Collectors.toList());
+        // 3. Page 객체의 map 함수를 사용하여 Page<ChatParticipant>를 Page<ChatMemberDto>로 변환합니다.
+        return participantsPage.map(participant -> new ChatMemberDto(
+                participant.getMember().getId(),
+                participant.getMember().getNickname(),
+                participant.getMember().getAvatar()
+        ));
     }
 }
 

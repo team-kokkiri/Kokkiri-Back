@@ -119,8 +119,10 @@ public class ChatController {
      * @return 채팅방 멤버 정보 리스트 (memberId, nickname, avatarUrl)
      */
     @GetMapping("/room/{roomId}/members")
-    public ResponseEntity<List<ChatMemberDto>> getChatRoomMembers(@PathVariable Long roomId) throws AccessDeniedException {
-        List<ChatMemberDto> members = chatService.getChatRoomMembers(roomId);
+    public ResponseEntity<?> getChatRoomMembers(
+            @PathVariable Long roomId,
+            @PageableDefault(size = 20) Pageable pageable) throws AccessDeniedException {
+        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, pageable);
         return ResponseEntity.ok(members);
     }
 
