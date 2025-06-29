@@ -5,6 +5,7 @@ import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
 import com.example.kokkiri.problem.dto.*;
 import com.example.kokkiri.problem.service.DailyProblemFacadeService;
+import com.example.kokkiri.problem.service.DailyRankingService;
 import com.example.kokkiri.problem.service.ProblemSubmissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class ProblemSubmissionController {
     
     private final ProblemSubmissionService submissionService;
     private final DailyProblemFacadeService facadeService;
+    private final DailyRankingService rankingService;
     
     /**
      * 코드 제출 및 채점
@@ -102,12 +104,83 @@ public class ProblemSubmissionController {
     }
     
     /**
-     * 제출 상세 조회
+     * 랭킹에서 클릭 시 해결 코드 조회 (내가 오늘 문제를 해결한 경우에만)
      */
-    @GetMapping("/{submissionId}")
-    public ResponseEntity<CommonResDto> getSubmissionDetail(
+    @GetMapping("/code/{submissionId}")
+    public ResponseEntity<CommonResDto> getSubmissionCode(
             @PathVariable Long submissionId,
             @AuthenticationPrincipal Member member) {
+        
+        try {
+            // 로그인 확인
+            if (member == null) {
+                return new ResponseEntity<>(
+                    new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+            
+            Optional<ProblemSubmission> submissionOpt = submissionService.getSubmissionById(submissionId);
+            
+            if (submissionOpt.isEmpty()) {
+                return new ResponseEntity<>(
+                    new CommonResDto(HttpStatus.NOT_FOUND, "존재하지 않는 제출 기록입니다.", null),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+            
+            ProblemSubmission submission = submissionOpt.get();
+            
+            // 정답인 제출만 조회 가능 (랭킹에 올라간 코드만)
+            if (!"ACCEPTED".equals(submission.getStatus().name())) {
+                return new ResponseEntity<>(
+                    new CommonResDto(HttpStatus.FORBIDDEN, "정답이 아닌 제출은 조회할 수 없습니다.", null),
+                    HttpStatus.FORBIDDEN
+                );
+            }
+            
+            // 핵심: 내가 오늘 문제를 해결했는지 확인
+            Long problemId = submission.getDailyProblem().getId();
+            boolean iHaveSolved = rankingService.hasSolved(problemId, member.getId());
+            
+            if (!iHaveSolved) {
+                return new ResponseEntity<>(
+                    new CommonResDto(HttpStatus.FORBIDDEN, "오늘 문제를 먼저 해결해야 다른 사람의 코드를 볼 수 있습니다.", null),
+                    HttpStatus.FORBIDDEN
+                );
+            }
+            
+            ProblemSubmissionResDto response = ProblemSubmissionResDto.from(submission);
+            log.info("랭킹 코드 조회: 제출ID={}, 작성자={}, 조회자={}", 
+                    submissionId, submission.getMember().getNickname(), member.getNickname());
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.OK, "해결 코드 조회 성공", response),
+                HttpStatus.OK
+            );
+            
+        } catch (Exception e) {
+            log.error("해결 코드 조회 중 오류 발생: 제출ID={}", submissionId, e);
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+    
+    /**
+     * 내 제출 상세 조회 (본인만 가능)
+     */
+    @GetMapping("/my/{submissionId}")
+    public ResponseEntity<CommonResDto> getMySubmissionDetail(
+            @PathVariable Long submissionId,
+            @AuthenticationPrincipal Member member) {
+        
+        if (member == null) {
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
+                HttpStatus.UNAUTHORIZED
+            );
+        }
         
         try {
             Optional<ProblemSubmission> submissionOpt = submissionService.getSubmissionById(submissionId);
@@ -121,58 +194,22 @@ public class ProblemSubmissionController {
             
             ProblemSubmission submission = submissionOpt.get();
             
-            // 본인의 제출 기록만 조회 가능 (관리자는 모든 기록 조회 가능)
-            if (member == null || 
-                (!submission.getMember().getId().equals(member.getId()) && 
-                 !member.getRole().name().equals("ADMIN"))) {
+            // 본인의 제출 기록만 조회 가능
+            if (!submission.getMember().getId().equals(member.getId())) {
                 return new ResponseEntity<>(
-                    new CommonResDto(HttpStatus.FORBIDDEN, "접근 권한이 없습니다.", null),
+                    new CommonResDto(HttpStatus.FORBIDDEN, "본인의 제출 기록만 조회할 수 있습니다.", null),
                     HttpStatus.FORBIDDEN
                 );
             }
             
             ProblemSubmissionResDto response = ProblemSubmissionResDto.from(submission);
             return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.OK, "제출 기록 조회 성공", response),
-                HttpStatus.OK
-            );
-            
-        } catch (Exception e) {
-            log.error("제출 기록 조회 중 오류 발생: 제출ID={}", submissionId, e);
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
-    
-    /**
-     * 내 제출 기록 조회
-     */
-    @GetMapping("/my")
-    public ResponseEntity<CommonResDto> getMySubmissions(@AuthenticationPrincipal Member member) {
-        
-        if (member == null) {
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
-                HttpStatus.UNAUTHORIZED
-            );
-        }
-        
-        try {
-            List<ProblemSubmission> submissions = submissionService.getMemberAllSubmissions(member.getId());
-            
-            List<ProblemSubmissionResDto> response = submissions.stream()
-                    .map(ProblemSubmissionResDto::fromWithoutSourceCode) // 목록에서는 소스코드 제외
-                    .toList();
-            
-            return new ResponseEntity<>(
                 new CommonResDto(HttpStatus.OK, "내 제출 기록 조회 성공", response),
                 HttpStatus.OK
             );
             
         } catch (Exception e) {
-            log.error("내 제출 기록 조회 중 오류 발생: 회원ID={}", member.getId(), e);
+            log.error("내 제출 기록 조회 중 오류 발생: 제출ID={}", submissionId, e);
             return new ResponseEntity<>(
                 new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
                 HttpStatus.INTERNAL_SERVER_ERROR
@@ -180,125 +217,11 @@ public class ProblemSubmissionController {
         }
     }
     
-    /**
-     * 특정 문제에 대한 내 제출 기록 조회
-     */
-    @GetMapping("/my/problem/{problemId}")
-    public ResponseEntity<CommonResDto> getMySubmissionsForProblem(
-            @PathVariable Long problemId,
-            @AuthenticationPrincipal Member member) {
-        
-        if (member == null) {
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
-                HttpStatus.UNAUTHORIZED
-            );
-        }
-        
-        try {
-            List<ProblemSubmission> submissions = submissionService.getMemberSubmissions(problemId, member.getId());
-            
-            List<ProblemSubmissionResDto> response = submissions.stream()
-                    .map(ProblemSubmissionResDto::from) // 개별 문제는 소스코드 포함
-                    .toList();
-            
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.OK, "문제별 제출 기록 조회 성공", response),
-                HttpStatus.OK
-            );
-            
-        } catch (Exception e) {
-            log.error("문제별 제출 기록 조회 중 오류 발생: 문제ID={}, 회원ID={}", problemId, member.getId(), e);
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+
     
-    /**
-     * 특정 문제의 모든 제출 기록 조회 (관리자 전용)
-     */
-    @GetMapping("/problem/{problemId}")
-    public ResponseEntity<CommonResDto> getProblemSubmissions(
-            @PathVariable Long problemId,
-            @AuthenticationPrincipal Member member) {
-        
-        if (member == null || !member.getRole().name().equals("ADMIN")) {
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.FORBIDDEN, "관리자 권한이 필요합니다.", null),
-                HttpStatus.FORBIDDEN
-            );
-        }
-        
-        try {
-            List<ProblemSubmission> submissions = submissionService.getProblemSubmissions(problemId);
-            
-            List<ProblemSubmissionResDto> response = submissions.stream()
-                    .map(ProblemSubmissionResDto::fromWithoutSourceCode) // 관리자도 목록에서는 소스코드 제외
-                    .toList();
-            
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.OK, "문제 제출 기록 조회 성공", response),
-                HttpStatus.OK
-            );
-            
-        } catch (Exception e) {
-            log.error("문제 제출 기록 조회 중 오류 발생: 문제ID={}", problemId, e);
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+
     
-    /**
-     * 특정 문제의 해결 여부 확인
-     */
-    @GetMapping("/solved/{problemId}")
-    public ResponseEntity<CommonResDto> checkSolved(
-            @PathVariable Long problemId,
-            @AuthenticationPrincipal Member member) {
-        
-        if (member == null) {
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
-                HttpStatus.UNAUTHORIZED
-            );
-        }
-        
-        try {
-            boolean hasSolved = submissionService.hasSolved(problemId, member.getId());
-            int submissionCount = submissionService.getSubmissionCount(problemId, member.getId());
-            
-            SolvedStatusResDto response = SolvedStatusResDto.builder()
-                    .problemId(problemId)
-                    .memberId(member.getId())
-                    .hasSolved(hasSolved)
-                    .submissionCount(submissionCount)
-                    .build();
-            
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.OK, "해결 여부 조회 성공", response),
-                HttpStatus.OK
-            );
-            
-        } catch (Exception e) {
-            log.error("해결 여부 조회 중 오류 발생: 문제ID={}, 회원ID={}", problemId, member.getId(), e);
-            return new ResponseEntity<>(
-                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+
     
-    // 내부 클래스: 해결 상태 응답 DTO
-    @lombok.Builder
-    @lombok.Getter
-    public static class SolvedStatusResDto {
-        private Long problemId;
-        private Long memberId;
-        private boolean hasSolved;
-        private int submissionCount;
-    }
+
 }

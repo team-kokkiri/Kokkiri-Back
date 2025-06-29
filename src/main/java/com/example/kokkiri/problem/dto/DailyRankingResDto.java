@@ -23,6 +23,7 @@ public class DailyRankingResDto {
     private Integer submissionCount;
     private Integer executionTime;
     private LocalDateTime createdTime;
+    private Long submissionId; // 해결한 제출 ID
     
     public static DailyRankingResDto from(DailyRanking ranking) {
         return DailyRankingResDto.builder()
@@ -38,6 +39,7 @@ public class DailyRankingResDto {
                 .submissionCount(ranking.getSubmissionCount())
                 .executionTime(ranking.getExecutionTime())
                 .createdTime(ranking.getCreatedTime())
+                .submissionId(ranking.getSubmission().getId())
                 .build();
     }
 }

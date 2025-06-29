@@ -17,7 +17,6 @@ public class ProblemCompilerController {
 
     private final WebClient webClient;
 
-    // RapidAPI Judge0 키는 application.yml에 judge0.api-key로 설정
     public ProblemCompilerController(WebClient.Builder webClientBuilder,
                                     @Value("${judge0.api-key}") String apiKey) {
         this.webClient = webClientBuilder
@@ -27,22 +26,9 @@ public class ProblemCompilerController {
                 .build();
     }
 
-    // 코드 템플릿 반환 (옵션)
-    @GetMapping("/template")
-    public Map<String, String> getDefaultTemplate() {
-        String defaultCode = """
-            public class Main {
-                public static void main(String[] args) {
-                    System.out.println("Hello, World!");
-                }
-            }
-            """;
-        Map<String, String> res = new HashMap<>();
-        res.put("sourceCode", defaultCode);
-        return res;
-    }
-
-    // 코드 실행 엔드포인트 (Judge0 + polling) - 간단한 테스트용
+    /**
+     * 코드 실행 (Judge0 연동)
+     */
     @PostMapping(value = "/run", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<Map<String, String>>> compileCode(@RequestBody Map<String, String> requestBody) {
         String sourceCode = requestBody.getOrDefault("sourceCode", "");
@@ -89,7 +75,6 @@ public class ProblemCompilerController {
                         output.append(message);
                     }
 
-                    // 만약 아무런 출력도 없다면, status 설명 반환
                     if (output.length() == 0 && result.get("status") != null) {
                         Map status = (Map) result.get("status");
                         output.append("Status: ").append(status.get("description"));
@@ -105,13 +90,11 @@ public class ProblemCompilerController {
                 });
     }
 
-    // Polling: Judge0 결과가 '완료'될 때까지 주기적으로 체크
     private Mono<Map> pollJudge0Result(String token) {
         return Mono.defer(() -> getJudge0Result(token))
                 .expand(result -> {
                     Map status = (Map) result.get("status");
                     Integer statusId = status != null ? (Integer) status.get("id") : null;
-                    // 1: In Queue, 2: Processing
                     if (statusId != null && (statusId == 1 || statusId == 2)) {
                         return Mono.delay(java.time.Duration.ofMillis(800)).then(getJudge0Result(token));
                     } else {

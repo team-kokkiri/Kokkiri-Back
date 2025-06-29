@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,26 +46,6 @@ public class DailyProblemFacadeService {
     }
     
     /**
-     * 특정 날짜의 문제와 랭킹 정보를 함께 조회
-     */
-    public ProblemDetailInfo getProblemDetailInfo(LocalDate date, Long memberId) {
-        Optional<DailyProblem> problem = dailyProblemService.getProblemByDate(date);
-        
-        if (problem.isEmpty()) {
-            return new ProblemDetailInfo(null, List.of(), List.of(), false, 0);
-        }
-        
-        DailyProblem dailyProblem = problem.get();
-        List<DailyRanking> rankings = rankingService.getRankingByDate(date);
-        List<ProblemSubmission> memberSubmissions = memberId != null ? 
-                submissionService.getMemberSubmissions(dailyProblem.getId(), memberId) : List.of();
-        boolean hasSolved = memberId != null && rankingService.hasSolved(dailyProblem.getId(), memberId);
-        int submissionCount = memberId != null ? submissionService.getSubmissionCount(dailyProblem.getId(), memberId) : 0;
-        
-        return new ProblemDetailInfo(dailyProblem, rankings, memberSubmissions, hasSolved, submissionCount);
-    }
-    
-    /**
      * 코드 제출 및 전체 처리 (제출 → 채점 → 랭킹 업데이트)
      */
     @Transactional
@@ -77,10 +56,10 @@ public class DailyProblemFacadeService {
             return Mono.just(new SubmissionResult(false, "이미 해결한 문제입니다.", null, null));
         }
         
-        // 문제 존재 여부 확인
-        Optional<DailyProblem> problem = dailyProblemService.getProblemById(problemId);
-        if (problem.isEmpty()) {
-            return Mono.just(new SubmissionResult(false, "존재하지 않는 문제입니다.", null, null));
+        // 오늘 문제인지 확인
+        Optional<DailyProblem> todayProblem = dailyProblemService.getTodayProblem();
+        if (todayProblem.isEmpty() || !todayProblem.get().getId().equals(problemId)) {
+            return Mono.just(new SubmissionResult(false, "오늘 출제된 문제가 아닙니다.", null, null));
         }
         
         // 코드 제출 및 채점 처리
@@ -102,51 +81,6 @@ public class DailyProblemFacadeService {
                 .onErrorReturn(new SubmissionResult(false, "제출 처리 중 오류가 발생했습니다.", null, null));
     }
     
-    /**
-     * 회원의 전체 통계 정보 조회
-     */
-    public MemberProblemStats getMemberStats(Long memberId) {
-        List<DailyRanking> memberRankings = rankingService.getMemberAllRankings(memberId);
-        List<ProblemSubmission> memberSubmissions = submissionService.getMemberAllSubmissions(memberId);
-        
-        long totalSolved = memberRankings.size();
-        long totalSubmissions = memberSubmissions.size();
-        
-        // 최고 순위 계산
-        int bestRank = memberRankings.stream()
-                .mapToInt(DailyRanking::getRankPosition)
-                .min()
-                .orElse(0);
-        
-        // 평균 시도 횟수 계산
-        double avgAttempts = memberRankings.stream()
-                .mapToInt(DailyRanking::getSubmissionCount)
-                .average()
-                .orElse(0.0);
-        
-        // 최근 7일 해결 수
-        List<DailyRanking> recentRankings = rankingService.getMemberRecentRankings(memberId, 7);
-        long recentSolved = recentRankings.size();
-        
-        return new MemberProblemStats(totalSolved, totalSubmissions, bestRank, avgAttempts, recentSolved);
-    }
-    
-    /**
-     * 최근 문제들과 해결 여부를 함께 조회
-     */
-    public List<ProblemSummary> getRecentProblemsWithStatus(Long memberId, int days) {
-        List<DailyProblem> recentProblems = dailyProblemService.getRecentProblems(days);
-        
-        return recentProblems.stream()
-                .map(problem -> {
-                    boolean solved = memberId != null && rankingService.hasSolved(problem.getId(), memberId);
-                    long solverCount = rankingService.getSolverCount(problem.getId());
-                    
-                    return new ProblemSummary(problem, solved, solverCount);
-                })
-                .toList();
-    }
-    
     // DTO 클래스들
     
     public static class TodayProblemInfo {
@@ -163,23 +97,6 @@ public class DailyProblemFacadeService {
         }
     }
     
-    public static class ProblemDetailInfo {
-        public final DailyProblem problem;
-        public final List<DailyRanking> rankings;
-        public final List<ProblemSubmission> memberSubmissions;
-        public final boolean hasSolved;
-        public final int submissionCount;
-        
-        public ProblemDetailInfo(DailyProblem problem, List<DailyRanking> rankings, 
-                               List<ProblemSubmission> memberSubmissions, boolean hasSolved, int submissionCount) {
-            this.problem = problem;
-            this.rankings = rankings;
-            this.memberSubmissions = memberSubmissions;
-            this.hasSolved = hasSolved;
-            this.submissionCount = submissionCount;
-        }
-    }
-    
     public static class SubmissionResult {
         public final boolean success;
         public final String message;
@@ -191,34 +108,6 @@ public class DailyProblemFacadeService {
             this.message = message;
             this.submission = submission;
             this.ranking = ranking;
-        }
-    }
-    
-    public static class MemberProblemStats {
-        public final long totalSolved;
-        public final long totalSubmissions;
-        public final int bestRank;
-        public final double avgAttempts;
-        public final long recentSolved;
-        
-        public MemberProblemStats(long totalSolved, long totalSubmissions, int bestRank, double avgAttempts, long recentSolved) {
-            this.totalSolved = totalSolved;
-            this.totalSubmissions = totalSubmissions;
-            this.bestRank = bestRank;
-            this.avgAttempts = avgAttempts;
-            this.recentSolved = recentSolved;
-        }
-    }
-    
-    public static class ProblemSummary {
-        public final DailyProblem problem;
-        public final boolean solved;
-        public final long solverCount;
-        
-        public ProblemSummary(DailyProblem problem, boolean solved, long solverCount) {
-            this.problem = problem;
-            this.solved = solved;
-            this.solverCount = solverCount;
         }
     }
 }
