@@ -9,6 +9,7 @@ import com.example.kokkiri.problem.repository.DailyProblemRepository;
 import com.example.kokkiri.problem.repository.ProblemSubmissionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,13 +31,16 @@ public class ProblemSubmissionService {
     private final ProblemSubmissionRepository submissionRepository;
     private final DailyProblemRepository dailyProblemRepository;
     private final MemberRepository memberRepository;
-    private final DailyRankingService dailyRankingService;
     private final WebClient webClient;
+    
+    // DailyRankingService는 @Lazy로 주입하여 순환 참조 방지
+    @Lazy
+    private final DailyRankingService dailyRankingService;
     
     public ProblemSubmissionService(ProblemSubmissionRepository submissionRepository,
                                   DailyProblemRepository dailyProblemRepository,
                                   MemberRepository memberRepository,
-                                  DailyRankingService dailyRankingService,
+                                  @Lazy DailyRankingService dailyRankingService,
                                   WebClient.Builder webClientBuilder,
                                   @Value("${judge0.api-key}") String apiKey) {
         this.submissionRepository = submissionRepository;

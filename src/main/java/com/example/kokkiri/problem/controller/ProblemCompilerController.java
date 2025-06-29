@@ -1,4 +1,4 @@
-package com.example.kokkiri.compiler;
+package com.example.kokkiri.problem.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -12,14 +12,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/compiler")
-public class CompilerController {
+@RequestMapping("/api/problem/compiler")
+public class ProblemCompilerController {
 
     private final WebClient webClient;
 
     // RapidAPI Judge0 키는 application.yml에 judge0.api-key로 설정
-    public CompilerController(WebClient.Builder webClientBuilder,
-                              @Value("${judge0.api-key}") String apiKey) {
+    public ProblemCompilerController(WebClient.Builder webClientBuilder,
+                                    @Value("${judge0.api-key}") String apiKey) {
         this.webClient = webClientBuilder
                 .baseUrl("https://judge0-ce.p.rapidapi.com")
                 .defaultHeader("x-rapidapi-key", apiKey)
@@ -42,7 +42,7 @@ public class CompilerController {
         return res;
     }
 
-    // 코드 실행 엔드포인트 (Judge0 + polling)
+    // 코드 실행 엔드포인트 (Judge0 + polling) - 간단한 테스트용
     @PostMapping(value = "/run", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<Map<String, String>>> compileCode(@RequestBody Map<String, String> requestBody) {
         String sourceCode = requestBody.getOrDefault("sourceCode", "");
