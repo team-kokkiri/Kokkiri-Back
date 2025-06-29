@@ -21,7 +21,6 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -102,9 +101,7 @@ public class BoardService {
     }
 
     // 사이드 게시글 프리뷰
-    public List<BoardListResDto> getPreview(Long typeId, int size) {
-        Pageable pageable = PageRequest.of(0, size);
-
+    public List<BoardListResDto> getPreview(Long typeId, Pageable pageable) {
         // typeId == 3L일 때 베스트 게시판 처리
         Page<Board> boardPage = (typeId == 3L)
                 ? boardRepository.findBestBoardsPage(pageable)

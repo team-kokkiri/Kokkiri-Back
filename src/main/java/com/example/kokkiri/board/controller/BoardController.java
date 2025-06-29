@@ -42,23 +42,14 @@ public class BoardController {
         return ResponseEntity.ok(board.getId());
     }
 
-    // 게시글 리스트조회
-//    @GetMapping("/list/{typeId}/simple")
-//    public ResponseEntity<List<BoardListResDto>> getBoardList(@PathVariable Long typeId) {
-//        List<BoardListResDto> result = (typeId == 3L)
-//                ? boardService.getBestBoardsFromFreeBoard() // 자유게시판 기반 BEST 글 조회
-//                : boardService.getBoardListMerged(typeId);  // 일반 리스트
-//        return ResponseEntity.ok(result);
-//    }
-
     // 메인페이지 게시글 리스트조회
     @GetMapping("/main")
     public ResponseEntity<Map<String, List<BoardListResDto>>> getMainBoardList() {
         Map<String, List<BoardListResDto>> result = new HashMap<>();
-        result.put("notice", boardService.getBoardListMerged(4L)); // 공지사항
-        result.put("free", boardService.getBoardListMerged(1L));   // 자유게시판
-        result.put("best", boardService.getBestBoardsFromFreeBoard());    // BEST
-
+        result.put("notice", boardService.getBoardListMerged(4L));  // 공지사항
+        result.put("free", boardService.getBoardListMerged(1L));    // 자유게시판
+        result.put("best", boardService.getBestBoardsFromFreeBoard());     // BEST
+        result.put("project", boardService.getBoardListMerged(5L)); // 프로젝트 소개
         return ResponseEntity.ok(result);
     }
 
@@ -76,7 +67,8 @@ public class BoardController {
     @GetMapping("/preview/{typeId}")
     public ResponseEntity<List<BoardListResDto>> getPreview(@PathVariable Long typeId,
                                                             @RequestParam(defaultValue = "3") int size) {
-        return ResponseEntity.ok(boardService.getPreview(typeId, size));
+        Pageable pageable = PageRequest.of(0, size);
+        return ResponseEntity.ok(boardService.getPreview(typeId, pageable));
     }
 
     // 게시글 상세조회
