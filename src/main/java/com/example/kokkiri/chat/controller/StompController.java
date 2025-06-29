@@ -28,7 +28,6 @@ public class StompController {
     private final SimpMessageSendingOperations messsageTemplate;
     private final ChatService chatService;
 
-//    private final RedisPubSubService pubSubService;
     public StompController(SimpMessageSendingOperations messsageTemplate, ChatService chatService) {
         this.messsageTemplate = messsageTemplate;
         this.chatService = chatService;
@@ -36,16 +35,11 @@ public class StompController {
 
     @MessageMapping("/{roomId}")    // 클라이언트에서 특정 publish/roomId 형태로 메세지를 발행시 MessageMapping 수신
     public void sendMessage(@DestinationVariable Long roomId, ChatMessageDto chatMessageReqDto) throws JsonProcessingException {
-        System.out.println(chatMessageReqDto.getMessage());
-        ChatMessageDto chatMessageResDto = chatService.saveMessage(roomId, chatMessageReqDto);
+        // 서비스의 통합 메소드 하나만 호출하여 모든 DB 작업을 위임합니다.
+        ChatMessageDto chatMessageResDto = chatService.processAndSaveMessage(roomId, chatMessageReqDto);
 
-        messsageTemplate.convertAndSend("/topic/"+roomId, chatMessageResDto);
+        // 클라이언트에게 메시지 전송
+        messsageTemplate.convertAndSend("/topic/" + roomId, chatMessageResDto);
 
-        chatService.sendChatNotification(roomId, chatMessageReqDto.getSenderEmail(), chatMessageReqDto.getCreatedTime());
-
-//        chatMessageReqDto.setRoomId(roomId);
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        String message = objectMapper.writeValueAsString(chatMessageReqDto);
-//        pubSubService.publish("chat", message);
     }
 }
