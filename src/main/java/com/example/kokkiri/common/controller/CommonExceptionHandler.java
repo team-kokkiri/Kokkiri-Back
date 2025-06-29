@@ -2,6 +2,8 @@ package com.example.kokkiri.common.controller;
 
 import com.example.kokkiri.common.dto.CommonErrorDto;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailSendException;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import java.io.IOException;
 
 @ControllerAdvice
+@Slf4j
 public class CommonExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -35,9 +38,20 @@ public class CommonExceptionHandler {
     }
 
     @ExceptionHandler(IOException.class)
-    public ResponseEntity<CommonErrorDto> IOExceptionHandler(IOException e){
-        e.printStackTrace();
-        CommonErrorDto commonErrorDto = new CommonErrorDto(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+    public ResponseEntity<CommonErrorDto> handleIOException(IOException e, HttpServletRequest request){
+
+        String contentType = request.getHeader("Accept");
+        if ("text/event-stream".equals(contentType)) {
+            log.info("SSE IOException (likely client disconnected): {}", e.getMessage());
+            return null; // SSE의 IOException은 응답이 필요 없음
+        }
+
+        // 일반적인 IOException 처리
+        log.error("IOException occurred: ", e);
+        CommonErrorDto commonErrorDto = new CommonErrorDto(
+                HttpStatus.BAD_REQUEST.value(),
+                e.getMessage() != null ? e.getMessage() : "An unexpected IO error occurred."
+        );
         return new ResponseEntity<>(commonErrorDto, HttpStatus.BAD_REQUEST);
     }
 
@@ -75,4 +89,5 @@ public class CommonExceptionHandler {
         CommonErrorDto commonErrorDto = new CommonErrorDto(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         return new ResponseEntity<>(commonErrorDto, HttpStatus.BAD_REQUEST);
     }
+
 }

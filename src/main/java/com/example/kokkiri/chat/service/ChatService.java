@@ -2,6 +2,7 @@ package com.example.kokkiri.chat.service;
 
 
 import com.example.kokkiri.chat.domain.*;
+import com.example.kokkiri.chat.dto.ChatMemberDto;
 import com.example.kokkiri.chat.dto.ChatMessageDto;
 import com.example.kokkiri.chat.dto.ChatRoomListResDto;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
@@ -419,6 +420,32 @@ public class ChatService {
                 .createdTime(savedMessage.getCreatedTime())
                 .build();
 
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatMemberDto> getChatRoomMembers(Long roomId) throws AccessDeniedException {
+        // 1. 현재 요청을 보낸 사용자가 이 채팅방의 참여자인지 확인하여 권한을 검증합니다.
+        Member currentUser = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new EntityNotFoundException("현재 로그인된 사용자를 찾을 수 없습니다."));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
+        boolean isParticipant = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, currentUser);
+        if (!isParticipant) {
+            throw new AccessDeniedException("채팅방 멤버를 조회할 권한이 없습니다.");
+        }
+
+        // 2. 해당 채팅방의 모든 참여자(ChatParticipant) 목록을 가져옵니다.
+        List<ChatParticipant> participants = chatParticipantRepository.findByChatRoom(chatRoom);
+
+        // 3. 참여자 목록을 ChatMemberDto 목록으로 변환하여 반환합니다.
+        return participants.stream()
+                .map(participant -> new ChatMemberDto(
+                        participant.getMember().getId(),
+                        participant.getMember().getNickname(),
+                        participant.getMember().getAvatar()
+                ))
+                .collect(Collectors.toList());
     }
 }
 

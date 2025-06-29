@@ -21,6 +21,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -33,7 +34,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class NotificationService {
 
     private final EmitterRepository emitterRepository;
@@ -41,12 +41,11 @@ public class NotificationService {
     private final MemberRepository memberRepository;
     private final ChatInvitationRepository chatInvitationRepository;
 
-
     private static final Long DEFAULT_TIMEOUT = 60L * 1000 * 60; // 1시간
 
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SseEmitter subscribe(String lastEventId) {
-        Member member = getCurrentMember();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = getCurrentMember(email);
         String emitterId = member.getId() + "_" + System.currentTimeMillis();
         SseEmitter sseEmitter = emitterRepository.save(emitterId, new SseEmitter(DEFAULT_TIMEOUT));
 
@@ -75,7 +74,8 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationPageResDto getNotifications(Long lastId, int size) {
-        Member member = getCurrentMember();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = getCurrentMember(email);
         Long effectiveLastId = (lastId == null) ? Long.MAX_VALUE : lastId;
         Pageable pageable = PageRequest.of(0, size);
 
@@ -98,19 +98,22 @@ public class NotificationService {
     }
 
 
+    @Transactional(readOnly = true)
     public Optional<Notification> findByInvitationId(Long invitationId) {
         return notificationRepository.findByInvitationId(invitationId);
     }
 
     @Transactional
     public void markChatNotificationsAsRead() {
-        Member member = getCurrentMember();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = getCurrentMember(email);
         notificationRepository.deleteAllNotificationsByType(member, NotificationType.CHAT);
     }
 
     @Transactional
     public void markAllAsRead() {
-        Member member = getCurrentMember();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = getCurrentMember(email);
         notificationRepository.deleteAllNonChatNotificationsForUser(member);
         chatInvitationRepository.softDeleteAllByInvitedMemberId(member.getId());
 
@@ -118,14 +121,15 @@ public class NotificationService {
 
     @Transactional
     public void deleteNotification(Long notificationId) {
-        Member currentUser = getCurrentMember();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Member member = getCurrentMember(email);
 
         // 1. 알림 조회
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new EntityNotFoundException("ID " + notificationId + "에 해당하는 알림을 찾을 수 없습니다."));
 
         // 2. 알림 소유권 확인
-        if (!notification.getReceiver().getId().equals(currentUser.getId())) {
+        if (!notification.getReceiver().getId().equals(member.getId())) {
             throw new SecurityException("알림을 삭제할 권한이 없습니다.");
         }
 
@@ -138,21 +142,22 @@ public class NotificationService {
         }
 
         // 4. 알림 자체를 삭제 처리
-        notificationRepository.softDeleteByIdAndMember(notificationId, currentUser);
+        notificationRepository.softDeleteByIdAndMember(notificationId, member);
     }
 
 
     // =================  PRIVATE HELPER METHODS  ================= //
 
-    private Member getCurrentMember() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return memberRepository.findByEmail(email)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public Member getCurrentMember(String email) {
+        Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
+        return member;
     }
 
     private void setupSseCallbacks(SseEmitter sseEmitter, String emitterId) {
         Runnable cleanup = () -> {
-            try { // ✨ 동일하게 안전장치 추가
+            try {
                 emitterRepository.deleteById(emitterId);
             } catch (Exception e) {
                 log.error("Emitter 리소스 정리 중 에러 발생 (emitterId: {})", emitterId, e);
@@ -197,14 +202,17 @@ public class NotificationService {
                     .data(payload, MediaType.APPLICATION_JSON));
 
             log.info("SSE event sent. emitterId: {}, data: {}", emitterId, payload);
+        } catch (AsyncRequestNotUsableException e) {
+            log.debug("Client disconnected: AsyncRequestNotUsableException, emitterId: {}", emitterId);
+            emitter.complete(); // 자원을 정리하고 연결 종료 처리
+            emitterRepository.deleteById(emitterId);
         } catch (IOException e) {
-            log.info("Failed to send SSE event for emitterId: {}", emitterId, e);
-            // 리소스를 정리하는 과정에서 발생할 수 있는 모든 예외를 잡아서 처리합니다.
-            try {
-                emitterRepository.deleteById(emitterId);
-            } catch (Exception cleanupException) {
-                log.error("SSE emitter 정리 중 예외 발생. emitterId: {}", emitterId, cleanupException);
-            }
+            log.warn("IOException (Broken pipe or other), emitterId: {}", emitterId, e);
+            emitter.complete(); // 자원을 정리하고 연결 종료 처리
+            emitterRepository.deleteById(emitterId);
+        } catch (Exception e) {
+            log.error("Unexpected error on emitterId: {}", emitterId, e);
+            emitterRepository.deleteById(emitterId);
         }
     }
 
