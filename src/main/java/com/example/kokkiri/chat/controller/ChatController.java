@@ -118,14 +118,22 @@ public class ChatController {
      * @param roomId 채팅방 ID
      * @return 채팅방 멤버 정보 리스트 (memberId, nickname, avatarUrl)
      */
+//    @GetMapping("/room/{roomId}/members")
+//    public ResponseEntity<?> getChatRoomMembers(
+//            @PathVariable Long roomId,
+//            @PageableDefault(size = 20) Pageable pageable) throws AccessDeniedException {
+//        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, pageable);
+//        return ResponseEntity.ok(members);
+//    }
+
     @GetMapping("/room/{roomId}/members")
     public ResponseEntity<?> getChatRoomMembers(
             @PathVariable Long roomId,
+            @RequestParam(required = false) String nickname,
             @PageableDefault(size = 20) Pageable pageable) throws AccessDeniedException {
-        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, pageable);
+        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, nickname, pageable);
         return ResponseEntity.ok(members);
     }
-
 
 
 }

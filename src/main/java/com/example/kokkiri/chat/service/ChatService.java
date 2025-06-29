@@ -446,5 +446,36 @@ public class ChatService {
                 participant.getMember().getAvatar()
         ));
     }
+
+    @Transactional(readOnly = true)
+    public Page<ChatMemberDto> getChatRoomMembers(Long roomId, String nickname, Pageable pageable) throws AccessDeniedException {
+        // 1. 권한 검증 (기존과 동일)
+        Member currentUser = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new EntityNotFoundException("현재 로그인된 사용자를 찾을 수 없습니다."));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
+        boolean isParticipant = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, currentUser);
+        if (!isParticipant) {
+            throw new AccessDeniedException("채팅방 멤버를 조회할 권한이 없습니다.");
+        }
+
+        // 2. 닉네임 검색어 유무에 따라 다른 메소드를 호출합니다.
+        Page<ChatParticipant> participantsPage;
+        if (nickname != null && !nickname.isBlank()) {
+            // 검색어가 있으면 검색 쿼리 실행
+            participantsPage = chatParticipantRepository.findByChatRoomAndMemberNicknameContaining(chatRoom, nickname, pageable);
+        } else {
+            // 검색어가 없으면 전체 멤버 조회
+            participantsPage = chatParticipantRepository.findByChatRoom(chatRoom, pageable);
+        }
+
+        // 3. Page<ChatParticipant>를 Page<ChatMemberDto>로 변환하여 반환합니다.
+        return participantsPage.map(participant -> new ChatMemberDto(
+                participant.getMember().getId(),
+                participant.getMember().getNickname(),
+                participant.getMember().getAvatar()
+        ));
+    }
 }
 
