@@ -28,6 +28,11 @@ public class FileService {
      * @return BoardFile 엔티티 (DB 저장용 객체)
      */
     public BoardFile saveFile(MultipartFile file, Member member, Board board) {
+        // 파일 업로드 확장자 검증 로직
+        if (!FileUtils.validateFileExtension(file.getOriginalFilename())) {
+            throw new IllegalArgumentException("허용되지 않은 파일 확장자입니다.");
+        }
+
         // 고유한 파일명 생성 (UUID + 확장자)
         String savedName = FileUtils.generateFileName(file.getOriginalFilename());
         String filePath = FileUtils.saveFile(file, fileUploadConfig.getUploadDir(), savedName);

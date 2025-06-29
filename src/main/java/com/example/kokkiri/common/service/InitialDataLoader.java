@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -45,13 +46,15 @@ public class InitialDataLoader implements CommandLineRunner {
                     BoardType.builder().typeName("자유게시판").delYn("N").build(),
                     BoardType.builder().typeName("자료공유 게시판").delYn("N").build(),
                     BoardType.builder().typeName("HOT 게시판").delYn("N").build(),
-                    BoardType.builder().typeName("공지사항").delYn("N").build()
+                    BoardType.builder().typeName("공지사항").delYn("N").build(),
+                    BoardType.builder().typeName("프로젝트 소개").delYn("N").build()
             );
             boardTypeRepository.saveAll(boardTypes);
         }
     }
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         insertBoardTypes();
 

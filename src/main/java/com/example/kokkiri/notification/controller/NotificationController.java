@@ -54,7 +54,7 @@ public class NotificationController {
 //    }
 
     // 채팅 알림 읽음 처리
-    @PostMapping("/read/chat")
+    @PostMapping("/read-chat")
     public ResponseEntity<?> readAllChatNotifications() {
         notificationService.markChatNotificationsAsRead();
         return ResponseEntity.ok().build();
