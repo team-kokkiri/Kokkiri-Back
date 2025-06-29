@@ -18,6 +18,8 @@ public class DailyRankingResDto {
     private Long memberId;
     private String memberNickname;
     private String memberAvatar;
+    private Long memberTeamId;      // 멤버 팀 ID 추가
+    private String memberTeamName;   // 멤버 팀 이름 추가
     private Integer rankPosition;
     private LocalDateTime solveTime;
     private Integer submissionCount;
@@ -34,6 +36,8 @@ public class DailyRankingResDto {
                 .memberId(ranking.getMember().getId())
                 .memberNickname(ranking.getMember().getNickname())
                 .memberAvatar(ranking.getMember().getAvatar())
+                .memberTeamId(ranking.getMember().getTeam().getId())        // 팀 ID 추가
+                .memberTeamName(ranking.getMember().getTeam().getTeamName()) // 팀 이름 추가
                 .rankPosition(ranking.getRankPosition())
                 .solveTime(ranking.getSolveTime())
                 .submissionCount(ranking.getSubmissionCount())
