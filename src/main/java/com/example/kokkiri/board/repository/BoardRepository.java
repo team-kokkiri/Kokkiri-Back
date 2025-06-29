@@ -39,13 +39,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     Page<Board> findBestBoardsPage(Pageable pageable);
 
     // 내가 쓴 글
-    @Query("""
-            SELECT b FROM Board b
-                WHERE b.member.id = :memberId
-                  AND b.delYn = 'N'
-            ORDER BY b.createdTime DESC
-            """)
-    List<Board> findBoardsByWriter(@Param("memberId") Long memberId);
+    Page<Board> findByMemberIdAndDelYnOrderByCreatedTimeDesc(Long memberId, String delYn, Pageable pageable);
 
     // 댓글 단 글
     @Query("""
@@ -84,9 +78,6 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                                    @Param("keyword") String keyword,
                                    Pageable pageable);
 
-    Page<Board> findByMemberIdAndDelYnOrderByCreatedTimeDesc(Long memberId, String delYn, Pageable pageable);
-
-
     /**
      * [내가 댓글 단 게시글 목록 조회 쿼리]
      * - 사용자가 작성한 댓글이 달린 게시글들을 중복 없이 조회
@@ -111,7 +102,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                     """,
             nativeQuery = true)
     Page<Board> findBoardsByMyComments(@Param("memberId") Long memberId, Pageable pageable);
-    
+
     // 특정 날짜 이후 작성된 게시글 수 조회 (오늘 작성된 게시글)
     @Query("SELECT COUNT(b) FROM Board b WHERE b.createdTime >= :startDate AND b.delYn = 'N'")
     long countByCreatedTimeAfter(@Param("startDate") LocalDateTime startDate);
