@@ -7,7 +7,6 @@ import com.example.kokkiri.problem.domain.ProblemSubmission;
 import com.example.kokkiri.problem.domain.SubmissionStatus;
 import com.example.kokkiri.problem.repository.DailyProblemRepository;
 import com.example.kokkiri.problem.repository.ProblemSubmissionRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -24,7 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Slf4j
 public class ProblemSubmissionService {

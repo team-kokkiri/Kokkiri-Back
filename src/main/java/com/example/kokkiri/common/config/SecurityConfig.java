@@ -74,7 +74,8 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/api/members/oauth2/success",
                                 "/api/files/**",
-                                "/api/compiler/**"
+                                "/api/compiler/**",
+                                "/api/problem/**"
                         ).permitAll()
                         // 관리자만 접근 가능
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
