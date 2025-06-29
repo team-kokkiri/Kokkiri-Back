@@ -80,19 +80,13 @@ public class ProblemSubmissionService {
         ProblemSubmission savedSubmission = submissionRepository.save(submission);
         log.info("코드 제출 기록 생성: 문제ID={}, 회원ID={}, 제출ID={}", problemId, memberId, savedSubmission.getId());
         
-        // Judge0를 통한 채점 수행
-        return executeJudging(savedSubmission, problem)
-                .doOnSuccess(result -> {
-                    // 정답인 경우 랭킹 업데이트
-                    if (result.getStatus() == SubmissionStatus.ACCEPTED) {
-                        try {
-                            dailyRankingService.updateRanking(result);
-                        } catch (Exception e) {
-                            log.error("랭킹 업데이트 실패: 제출ID={}", result.getId(), e);
-                        }
-                    }
-                })
-                .doOnError(error -> log.error("채점 처리 중 오류 발생: 제출ID={}", savedSubmission.getId(), error));
+        // 연관 엔티티를 포함하여 다시 조회
+        ProblemSubmission fetchedSubmission = submissionRepository.findByIdWithFetch(savedSubmission.getId())
+                .orElse(savedSubmission);
+        
+        // Judge0를 통한 채점 수행 (비동기)
+        return executeJudging(fetchedSubmission, problem)
+                .doOnError(error -> log.error("채점 처리 중 오류 발생: 제출ID={}", fetchedSubmission.getId(), error));
     }
     
     /**
@@ -158,6 +152,10 @@ public class ProblemSubmissionService {
     @Transactional
     public ProblemSubmission updateSubmissionWithResult(ProblemSubmission submission, Map judgeResult, DailyProblem problem) {
         try {
+            // DB에서 연관 엔티티를 포함하여 다시 조회
+            ProblemSubmission managedSubmission = submissionRepository.findByIdWithFetch(submission.getId())
+                    .orElseThrow(() -> new IllegalStateException("제출 기록을 찾을 수 없습니다: " + submission.getId()));
+            
             // 실행 결과 파싱
             String stdout = (String) judgeResult.get("stdout");
             String stderr = (String) judgeResult.get("stderr");
@@ -169,15 +167,15 @@ public class ProblemSubmissionService {
             Object memory = judgeResult.get("memory");
             
             if (time != null) {
-                submission.setExecutionTime((int) (Double.parseDouble(time.toString()) * 1000)); // ms로 변환
+                managedSubmission.setExecutionTime((int) (Double.parseDouble(time.toString()) * 1000)); // ms로 변환
             }
             if (memory != null) {
-                submission.setMemoryUsage(Integer.parseInt(memory.toString()));
+                managedSubmission.setMemoryUsage(Integer.parseInt(memory.toString()));
             }
             
             // 상태 결정
             SubmissionStatus submissionStatus = determineStatus(status, stdout, problem);
-            submission.setStatus(submissionStatus);
+            managedSubmission.setStatus(submissionStatus);
             
             // 결과 메시지 구성
             StringBuilder resultMessage = new StringBuilder();
@@ -191,23 +189,45 @@ public class ProblemSubmissionService {
                 resultMessage.append("Compile: ").append(new String(Base64.getDecoder().decode(compileOutput)));
             }
             
-            submission.setJudgeResult(resultMessage.toString());
-            submission.setJudgeTime(LocalDateTime.now());
+            managedSubmission.setJudgeResult(resultMessage.toString());
+            managedSubmission.setJudgeTime(LocalDateTime.now());
             
             // 에러 메시지 설정
             if (submissionStatus != SubmissionStatus.ACCEPTED) {
-                submission.setErrorMessage(getErrorMessage(submissionStatus, resultMessage.toString()));
+                managedSubmission.setErrorMessage(getErrorMessage(submissionStatus, resultMessage.toString()));
             }
             
-            log.info("채점 완료: 제출ID={}, 상태={}", submission.getId(), submissionStatus);
-            return submissionRepository.save(submission);
+            log.info("채점 완료: 제출ID={}, 상태={}", managedSubmission.getId(), submissionStatus);
+            ProblemSubmission savedSubmission = submissionRepository.save(managedSubmission);
+            
+            // 정답인 경우 랭킹 업데이트 (트랜잭션 내에서 처리)
+            if (submissionStatus == SubmissionStatus.ACCEPTED) {
+                try {
+                    dailyRankingService.updateRanking(savedSubmission);
+                } catch (Exception e) {
+                    log.error("랭킹 업데이트 실패: 제출ID={}", savedSubmission.getId(), e);
+                }
+            }
+            
+            // 연관 엔티티를 포함하여 다시 조회하여 반환
+            return submissionRepository.findByIdWithFetch(savedSubmission.getId())
+                    .orElse(savedSubmission);
             
         } catch (Exception e) {
             log.error("채점 결과 처리 중 오류 발생: 제출ID={}", submission.getId(), e);
-            submission.setStatus(SubmissionStatus.RUNTIME_ERROR);
-            submission.setErrorMessage("채점 처리 중 오류가 발생했습니다.");
-            submission.setJudgeTime(LocalDateTime.now());
-            return submissionRepository.save(submission);
+            
+            // 실패 시에도 관리되는 엔티티로 업데이트
+            ProblemSubmission managedSubmission = submissionRepository.findByIdWithFetch(submission.getId())
+                    .orElse(submission);
+            
+            managedSubmission.setStatus(SubmissionStatus.RUNTIME_ERROR);
+            managedSubmission.setErrorMessage("채점 처리 중 오류가 발생했습니다.");
+            managedSubmission.setJudgeTime(LocalDateTime.now());
+            ProblemSubmission saved = submissionRepository.save(managedSubmission);
+            
+            // 연관 엔티티를 포함하여 다시 조회하여 반환
+            return submissionRepository.findByIdWithFetch(saved.getId())
+                    .orElse(saved);
         }
     }
     
@@ -323,6 +343,6 @@ public class ProblemSubmissionService {
      * 제출 기록 상세 조회
      */
     public Optional<ProblemSubmission> getSubmissionById(Long submissionId) {
-        return submissionRepository.findById(submissionId);
+        return submissionRepository.findByIdWithFetch(submissionId);
     }
 }

@@ -3,6 +3,7 @@ package com.example.kokkiri.problem.service;
 import com.example.kokkiri.problem.domain.DailyProblem;
 import com.example.kokkiri.problem.domain.DailyRanking;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
+import com.example.kokkiri.problem.domain.SubmissionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -88,7 +89,7 @@ public class DailyProblemFacadeService {
                     DailyRanking ranking = null;
                     
                     // 정답인 경우 랭킹 정보도 함께 반환
-                    if (submission.getStatus().name().equals("ACCEPTED")) {
+                    if (submission.getStatus() == SubmissionStatus.ACCEPTED) {
                         try {
                             ranking = rankingService.getMemberRanking(problemId, memberId).orElse(null);
                         } catch (Exception e) {

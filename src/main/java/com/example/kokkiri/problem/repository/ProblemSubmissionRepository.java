@@ -15,23 +15,23 @@ import java.util.Optional;
 public interface ProblemSubmissionRepository extends JpaRepository<ProblemSubmission, Long> {
     
     // 특정 문제에 대한 특정 회원의 모든 제출 기록 조회 (최신순)
-    @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.dailyProblem.id = :problemId AND ps.member.id = :memberId ORDER BY ps.submissionTime DESC")
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.dailyProblem.id = :problemId AND ps.member.id = :memberId ORDER BY ps.submissionTime DESC")
     List<ProblemSubmission> findByProblemAndMemberOrderBySubmissionTimeDesc(@Param("problemId") Long problemId, @Param("memberId") Long memberId);
     
     // 특정 문제에 대한 특정 회원의 정답 제출 기록 조회
-    @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.dailyProblem.id = :problemId AND ps.member.id = :memberId AND ps.status = 'ACCEPTED' ORDER BY ps.submissionTime ASC")
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.dailyProblem.id = :problemId AND ps.member.id = :memberId AND ps.status = 'ACCEPTED' ORDER BY ps.submissionTime ASC")
     Optional<ProblemSubmission> findAcceptedSubmission(@Param("problemId") Long problemId, @Param("memberId") Long memberId);
     
     // 특정 문제에 대한 모든 제출 기록 조회 (최신순)
-    @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.dailyProblem.id = :problemId ORDER BY ps.submissionTime DESC")
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.dailyProblem.id = :problemId ORDER BY ps.submissionTime DESC")
     List<ProblemSubmission> findByProblemOrderBySubmissionTimeDesc(@Param("problemId") Long problemId);
     
     // 특정 회원의 모든 제출 기록 조회 (최신순)
-    @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.member.id = :memberId ORDER BY ps.submissionTime DESC")
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.member.id = :memberId ORDER BY ps.submissionTime DESC")
     List<ProblemSubmission> findByMemberOrderBySubmissionTimeDesc(@Param("memberId") Long memberId);
     
     // 특정 문제에 대한 정답 제출 기록들 (시간순)
-    @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.dailyProblem.id = :problemId AND ps.status = 'ACCEPTED' ORDER BY ps.submissionTime ASC")
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.dailyProblem.id = :problemId AND ps.status = 'ACCEPTED' ORDER BY ps.submissionTime ASC")
     List<ProblemSubmission> findAcceptedSubmissionsByProblem(@Param("problemId") Long problemId);
     
     // 특정 회원이 특정 문제를 이미 정답처리 했는지 확인
@@ -48,4 +48,8 @@ public interface ProblemSubmissionRepository extends JpaRepository<ProblemSubmis
     // 시간 범위로 제출 기록 조회
     @Query("SELECT ps FROM ProblemSubmission ps WHERE ps.submissionTime BETWEEN :startTime AND :endTime ORDER BY ps.submissionTime DESC")
     List<ProblemSubmission> findBySubmissionTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    
+    // ID로 제출 기록 조회 (연관 엔티티 즉시 로딩)
+    @Query("SELECT ps FROM ProblemSubmission ps JOIN FETCH ps.dailyProblem JOIN FETCH ps.member WHERE ps.id = :id")
+    Optional<ProblemSubmission> findByIdWithFetch(@Param("id") Long id);
 }
