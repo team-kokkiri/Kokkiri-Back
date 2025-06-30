@@ -40,6 +40,9 @@ public class Board extends BaseTimeEntity {
     private Integer likeCount = 0;
 
     @Column(nullable = false)
+    private int reportCount = 0;
+
+    @Column(nullable = false)
     private Boolean questionYn = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -79,6 +82,11 @@ public class Board extends BaseTimeEntity {
     // 질문글에서 일반글으로 변경
     public void setQuestionYn(boolean questionYn) {
         this.questionYn = questionYn;
+    }
+
+    // 신고 카운트 증가
+    public void increaseReportCount() {
+        this.reportCount++;
     }
 
 }

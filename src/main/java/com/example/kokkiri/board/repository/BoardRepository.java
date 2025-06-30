@@ -106,5 +106,4 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     // 특정 날짜 이후 작성된 게시글 수 조회 (오늘 작성된 게시글)
     @Query("SELECT COUNT(b) FROM Board b WHERE b.createdTime >= :startDate AND b.delYn = 'N'")
     long countByCreatedTimeAfter(@Param("startDate") LocalDateTime startDate);
-
 }

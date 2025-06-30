@@ -29,15 +29,16 @@ public class Report extends BaseTimeEntity {
     @Column(nullable = false)
     private Long targetId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String reasonCode;
+    private ReportReason reportReason;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ReportStatus status;
 
+    // 신고 상태 변경
     public void setStatus(ReportStatus status) {
         this.status = status;
     }
-
 }

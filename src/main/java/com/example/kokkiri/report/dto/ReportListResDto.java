@@ -9,11 +9,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReportDetailResDto {
+public class ReportListResDto {
     private Long reportId;
     private String reportType;     // POST, COMMENT, REPLY
     private Long targetId;
-    private String reasonCode;
+    private String reportReason;
+    private Long reportCount;
     private String status;
     private String reporterNickname;
 
