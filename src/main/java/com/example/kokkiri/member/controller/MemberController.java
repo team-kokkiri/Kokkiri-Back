@@ -147,6 +147,7 @@ public class MemberController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
 
         MemberInfoResDto response = new MemberInfoResDto(
+                member.getId(),
                 member.getEmail(),
                 member.getNickname(),
                 member.getRole().name(),
