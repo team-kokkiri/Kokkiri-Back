@@ -43,16 +43,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtUtil.validateToken(token)) {
                     String email = jwtUtil.getEmailFromToken(token);
-                    Member member = memberRepository.findByEmail(email)
-                            .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+                    String role = jwtUtil.getEmailFromToken(token);
 
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + member.getRole().name());
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
                     UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(member, null, List.of(authority));
+                            new UsernamePasswordAuthenticationToken(email, null, List.of(authority));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
                     // [2] 토큰 인증 성공 (INFO)
-                    log.info("[JwtAuth] ✅ JWT 인증 성공 - email: {}, role: {}", email, member.getRole());
+                    log.info("[JwtAuth] ✅ JWT 인증 성공 - email: {}, role: {}", email, role);
                 } else {
                     // [3] 시그니처·구조 불일치 (WARN)
                     log.warn("[JwtAuth] ❌ 유효하지 않은 JWT (구조/서명 등 문제)");

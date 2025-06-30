@@ -2,10 +2,7 @@ package com.example.kokkiri.chat.service;
 
 
 import com.example.kokkiri.chat.domain.*;
-import com.example.kokkiri.chat.dto.ChatMemberDto;
-import com.example.kokkiri.chat.dto.ChatMessageDto;
-import com.example.kokkiri.chat.dto.ChatRoomListResDto;
-import com.example.kokkiri.chat.dto.MyChatListResDto;
+import com.example.kokkiri.chat.dto.*;
 import com.example.kokkiri.chat.repository.*;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
@@ -103,7 +100,7 @@ public class ChatService {
     }
 
 
-    public void createGroupRoom(String chatRoomName){
+    public ChatResDto createGroupRoom(String chatRoomName){
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
@@ -113,7 +110,7 @@ public class ChatService {
                 .isGroupChat("Y")
                 .build();
 
-        chatRoomRepository.save(chatRoom);
+        ChatRoom newChatRoom = chatRoomRepository.save(chatRoom);
 
         // 채팅 참여자로 개설자를 추가
         ChatParticipant chatParticipant = ChatParticipant.builder()
@@ -122,6 +119,12 @@ public class ChatService {
                 .build();
 
         chatParticipantRepository.save(chatParticipant);
+
+        return ChatResDto.builder()
+                .roomId(newChatRoom.getId())
+                .roomName(newChatRoom.getName())
+                .build();
+
     }
 
     @Transactional(readOnly = true)
@@ -188,6 +191,7 @@ public class ChatService {
                     .message(c.getContent())
                     .senderEmail(c.getMember().getEmail())
                     .createdTime(c.getCreatedTime())
+                    .nickname(c.getMember().getNickname())
                     .build();
             chatMessageDtos.add(chatMessageDto);
         }
@@ -418,6 +422,7 @@ public class ChatService {
                 .message(savedMessage.getContent())
                 .senderEmail(sender.getEmail())
                 .createdTime(savedMessage.getCreatedTime())
+                .nickname(sender.getNickname())
                 .build();
 
     }
@@ -443,7 +448,8 @@ public class ChatService {
         return participantsPage.map(participant -> new ChatMemberDto(
                 participant.getMember().getId(),
                 participant.getMember().getNickname(),
-                participant.getMember().getAvatar()
+                participant.getMember().getAvatar(),
+                participant.getMember().getEmail()
         ));
     }
 
@@ -474,7 +480,8 @@ public class ChatService {
         return participantsPage.map(participant -> new ChatMemberDto(
                 participant.getMember().getId(),
                 participant.getMember().getNickname(),
-                participant.getMember().getAvatar()
+                participant.getMember().getAvatar(),
+                participant.getMember().getEmail()
         ));
     }
 }
