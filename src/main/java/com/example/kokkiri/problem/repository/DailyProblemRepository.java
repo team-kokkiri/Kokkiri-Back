@@ -17,4 +17,7 @@ public interface DailyProblemRepository extends JpaRepository<DailyProblem, Long
     
     // 해당 날짜에 문제가 있는지 확인
     boolean existsByProblemDate(LocalDate problemDate);
+    
+    // 특정 날짜의 문제 조회
+    Optional<DailyProblem> findByProblemDateAndIsActive(LocalDate problemDate, String isActive);
 }

@@ -162,9 +162,20 @@ public class BoardService {
                 ))
                 .collect(Collectors.toList());
 
-        // 파일 URL 생성
+        // 파일 URL 생성 (기존 호환성 유지)
         List<String> fileUrls = board.getBoardFiles().stream()
                 .map(file -> "/api/files/" + file.getSavedName())
+                .toList();
+                
+        // 파일 상세 정보 생성
+        List<BoardFileDto> files = board.getBoardFiles().stream()
+                .map(file -> BoardFileDto.builder()
+                        .id(file.getId())
+                        .fileUrl("/api/files/" + file.getSavedName())
+                        .originalName(file.getOriginalName())
+                        .fileType(file.getFileType())
+                        .fileSize(file.getFileSize())
+                        .build())
                 .toList();
 
         // 실제 보여지는 댓글 수
@@ -180,6 +191,7 @@ public class BoardService {
                 .boardCreatedAt(board.getCreatedTime())
                 .comments(boardComments)
                 .fileUrls(fileUrls)
+                .files(files)
                 .build();
     }
 
