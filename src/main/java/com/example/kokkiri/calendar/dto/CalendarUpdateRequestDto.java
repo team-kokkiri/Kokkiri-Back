@@ -1,6 +1,10 @@
 package com.example.kokkiri.calendar.dto;
 
-import lombok.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
@@ -8,12 +12,8 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class CalendarResponseDto {
-    private Long id;
+public class CalendarUpdateRequestDto {
     private String title;
     private String description;
     private LocalDate date;
-    private Boolean isPublic;
-    private Long memberId;
 }

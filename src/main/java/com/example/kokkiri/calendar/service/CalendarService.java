@@ -3,6 +3,7 @@ package com.example.kokkiri.calendar.service;
 import com.example.kokkiri.calendar.domain.CalendarEntity;
 import com.example.kokkiri.calendar.dto.CalendarCreateRequestDto;
 import com.example.kokkiri.calendar.dto.CalendarResponseDto;
+import com.example.kokkiri.calendar.dto.CalendarUpdateRequestDto;
 import com.example.kokkiri.calendar.repository.CalendarRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.domain.Role;
@@ -54,7 +55,6 @@ public class CalendarService {
                 .date(saved.getDate())
                 .isPublic(saved.getIsPublic())
                 .memberId(member.getId())
-                .memberNickname(member.getNickname())
                 .build();
     }
 
@@ -77,8 +77,64 @@ public class CalendarService {
                         .date(c.getDate())
                         .isPublic(c.getIsPublic())
                         .memberId(c.getMember().getId())
-                        .memberNickname(c.getMember().getNickname())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CalendarResponseDto updateCalendar(Long calendarId, CalendarUpdateRequestDto dto, Long memberId) {
+        CalendarEntity cal = calendarRepository.findById(calendarId)
+                .orElseThrow(() -> new IllegalArgumentException("일정이 존재하지 않습니다."));
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("멤버가 존재하지 않습니다."));
+
+        if (Boolean.TRUE.equals(cal.getIsPublic())) {
+            // 공용 일정: 관리자인 경우만 가능
+            if (member.getRole() != Role.ADMIN) {
+                throw new IllegalStateException("공용 일정은 관리자만 수정할 수 있습니다.");
+            }
+        } else {
+            // 개인 일정: 본인만 가능
+            if (!cal.getMember().getId().equals(memberId)) {
+                throw new IllegalStateException("본인 개인 일정만 수정할 수 있습니다.");
+            }
+        }
+
+        // 수정 적용
+        cal.setTitle(dto.getTitle());
+        cal.setDescription(dto.getDescription());
+        cal.setDate(dto.getDate());
+
+        return CalendarResponseDto.builder()
+                .id(cal.getId())
+                .title(cal.getTitle())
+                .description(cal.getDescription())
+                .date(cal.getDate())
+                .isPublic(cal.getIsPublic())
+                .memberId(cal.getMember().getId())
+                .build();
+    }
+
+    @Transactional
+    public void deleteCalendar(Long calendarId, Long memberId) {
+        CalendarEntity cal = calendarRepository.findById(calendarId)
+                .orElseThrow(() -> new IllegalArgumentException("일정이 존재하지 않습니다."));
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("멤버가 존재하지 않습니다."));
+
+        // 공용 일정이면 관리자만 삭제 가능
+        if (Boolean.TRUE.equals(cal.getIsPublic())) {
+            if (member.getRole() != Role.ADMIN) {
+                throw new IllegalStateException("공용 일정은 관리자만 삭제할 수 있습니다.");
+            }
+        } else {
+            // 개인 일정이면 본인만 삭제 가능
+            if (!cal.getMember().getId().equals(memberId)) {
+                throw new IllegalStateException("본인 일정만 삭제할 수 있습니다.");
+            }
+        }
+        calendarRepository.delete(cal);
     }
 }

@@ -135,19 +135,19 @@ public class MemberService {
                 .collect(Collectors.toList());
     }
 
-    // 내 정보 조회용 DTO 반환
-    public MemberInfoResDto getMyInfo(String email) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-        return new MemberInfoResDto(member.getEmail(), member.getNickname(), member.getRole().name(),member.getAvatar());
-    }
-
-    // Access Token 발급
-    public String generateAccessToken(String email) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-        return jwtUtil.generateToken(email, member.getRole().name(), true,member.getNickname(),null);
-    }
+//    // 내 정보 조회용 DTO 반환
+//    public MemberInfoResDto getMyInfo(String email) {
+//        Member member = memberRepository.findByEmail(email)
+//                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+//        return new MemberInfoResDto(member.getId(), member.getEmail(), member.getNickname(), member.getRole().name(),member.getAvatar());
+//    }
+//
+//    // Access Token 발급
+//    public String generateAccessToken(String email) {
+//        Member member = memberRepository.findByEmail(email)
+//                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+//        return jwtUtil.generateToken(email, member.getRole().name(), true,member.getNickname(),null);
+//    }
 
     // 비밀번호 유효성 검사
     private boolean isValidPassword(String password) {

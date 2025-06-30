@@ -2,10 +2,7 @@ package com.example.kokkiri.calendar.domain;
 
 import com.example.kokkiri.member.domain.Member;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
@@ -14,6 +11,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @Getter
+@Setter
 public class CalendarEntity {
 
     @Id
