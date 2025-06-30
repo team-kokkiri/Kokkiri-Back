@@ -39,13 +39,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     Page<Board> findBestBoardsPage(Pageable pageable);
 
     // 내가 쓴 글
-    @Query("""
-            SELECT b FROM Board b
-                WHERE b.member.id = :memberId
-                  AND b.delYn = 'N'
-            ORDER BY b.createdTime DESC
-            """)
-    List<Board> findBoardsByWriter(@Param("memberId") Long memberId);
+    Page<Board> findByMemberIdAndDelYnOrderByCreatedTimeDesc(Long memberId, String delYn, Pageable pageable);
 
     // 댓글 단 글
     @Query("""
@@ -84,14 +78,11 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                                    @Param("keyword") String keyword,
                                    Pageable pageable);
 
-    Page<Board> findByMemberIdAndDelYnOrderByCreatedTimeDesc(Long memberId, String delYn, Pageable pageable);
-
-
     /**
      * [내가 댓글 단 게시글 목록 조회 쿼리]
      * - 사용자가 작성한 댓글이 달린 게시글들을 중복 없이 조회
      * - 같은 게시글에 여러 댓글을 달았더라도 1개 게시글로만 표시
-     * - 최신 댓글 순서로 정렬 (가장 최근에 댓글 단 게시글이 먼저 보임)
+     * - 최신 댓글 순서로 정렬 (가장 최근에 댓글 단 게시글이 먼저 보임) / 안됨
      * - DISTINCT ON (PostgreSQL 문법): b.id 기준으로 게시글 하나만 추출
      * - nativeQuery 사용 이유: JPQL에서는 DISTINCT ON 지원하지 않음
      * - countQuery: 페이징 처리의 전체 게시글 개수를 정확하게 계산하기 위해 별도로 명시
@@ -111,7 +102,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
                     """,
             nativeQuery = true)
     Page<Board> findBoardsByMyComments(@Param("memberId") Long memberId, Pageable pageable);
-    
+
     // 특정 날짜 이후 작성된 게시글 수 조회 (오늘 작성된 게시글)
     @Query("SELECT COUNT(b) FROM Board b WHERE b.createdTime >= :startDate AND b.delYn = 'N'")
     long countByCreatedTimeAfter(@Param("startDate") LocalDateTime startDate);

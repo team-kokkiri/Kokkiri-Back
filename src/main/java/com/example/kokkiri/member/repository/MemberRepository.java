@@ -18,8 +18,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByNickname(String nickname);
     @Query("""
     SELECT m FROM Member m
-    WHERE (LOWER(m.nickname) LIKE LOWER(CONCAT('%', :keyword, '%'))
-       OR LOWER(m.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
+    WHERE (m.nickname ILIKE CONCAT('%', :keyword, '%')
+       OR m.email ILIKE CONCAT('%', :keyword, '%'))
       AND (:lastId IS NULL OR m.id < :lastId)
     ORDER BY m.id DESC
     """)

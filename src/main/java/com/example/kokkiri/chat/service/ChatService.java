@@ -2,6 +2,7 @@ package com.example.kokkiri.chat.service;
 
 
 import com.example.kokkiri.chat.domain.*;
+import com.example.kokkiri.chat.dto.ChatMemberDto;
 import com.example.kokkiri.chat.dto.ChatMessageDto;
 import com.example.kokkiri.chat.dto.ChatRoomListResDto;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
@@ -51,7 +52,7 @@ public class ChatService {
         this.notificationRepository = notificationRepository;
     }
 
-    public ChatMessageDto saveMessage(Long roomId, ChatMessageDto chatMessageReqDto){
+    private ChatMessageDto saveMessage(Long roomId, ChatMessageDto chatMessageReqDto){
         // 채팅방 조회
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()-> new EntityNotFoundException("room cannot be found"));
 
@@ -87,7 +88,7 @@ public class ChatService {
                 .build();
     }
 
-    public void sendChatNotification(Long roomId, String senderEmail, LocalDateTime actionCreatedAt){
+    private void sendChatNotification(Long roomId, String senderEmail, LocalDateTime actionCreatedAt){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()-> new EntityNotFoundException("room cannot be found"));
         Member sender = memberRepository.findByEmail(senderEmail).orElseThrow(()-> new EntityNotFoundException("member cannot be found"));
 
@@ -123,6 +124,7 @@ public class ChatService {
         chatParticipantRepository.save(chatParticipant);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatRoomListResDto> getGroupChatRooms(){
         List<ChatRoom> chatRooms = chatRoomRepository.findByIsGroupChat("Y");
         List<ChatRoomListResDto> dtos = new ArrayList<>();
@@ -162,6 +164,7 @@ public class ChatService {
         chatParticipantRepository.save(chatParticipant);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatMessageDto> getChatHistory(Long roomId){
         // 내가 해당 채팅방의 참여자가 아닐 경우 에러 발생
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
@@ -191,6 +194,7 @@ public class ChatService {
         return chatMessageDtos;
     }
 
+    @Transactional(readOnly = true)
     public boolean isRoomParticipant(String email, Long roomId){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
         Member member = memberRepository.findByEmail(email).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
@@ -214,7 +218,7 @@ public class ChatService {
         }
     }
 
-
+    @Transactional(readOnly = true)
     public Page<MyChatListResDto> getMyChatRooms(Pageable pageable) {
         // 1. 현재 사용자 정보 조회
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
@@ -322,7 +326,7 @@ public class ChatService {
         chatInvitationRepository.save(invitation);
 
         String content = inviter.getNickname() + "님이 <" + chatRoom.getName() + "> 그룹 채팅에 초대하였습니다.";
-        String url = "/chatPage/" + chatRoom.getId();
+        String url = "/chat/" + chatRoom.getId();
         notificationService.send(invitedMember, NotificationType.INVITATION, content, url, invitation.getId(), invitation.getCreatedTime());
     }
 
@@ -367,4 +371,111 @@ public class ChatService {
             notification.delete();
         });
     }
+
+    /**
+     * STOMP 컨트롤러로부터 메시지 처리 요청을 받아,
+     * 메시지 저장과 알림 발송을 하나의 트랜잭션으로 처리하는 통합 메소드.
+     */
+    @Transactional
+    public ChatMessageDto processAndSaveMessage(Long roomId, ChatMessageDto chatMessageReqDto) {
+        // 1. 필요한 엔티티 조회
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " + roomId));
+        Member sender = memberRepository.findByEmail(chatMessageReqDto.getSenderEmail())
+                .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + chatMessageReqDto.getSenderEmail()));
+
+        // 2. 메시지 엔티티 생성 및 저장
+        ChatMessage chatMessage = ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .member(sender)
+                .content(chatMessageReqDto.getMessage())
+                .build();
+        ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
+
+        // 3. 채팅 참여자들에게 '읽음 상태' 생성
+        List<ChatParticipant> chatParticipants = chatParticipantRepository.findByChatRoom(chatRoom);
+        for (ChatParticipant participant : chatParticipants) {
+            ReadStatus readStatus = ReadStatus.builder()
+                    .chatRoom(chatRoom)
+                    .member(participant.getMember())
+                    .chatMessage(savedMessage)
+                    .isRead(participant.getMember().equals(sender)) // 보낸 사람만 즉시 읽음 처리
+                    .build();
+            readStatusRepository.save(readStatus);
+        }
+
+        // 4. 다른 참여자에게 알림 전송
+        String url = "/my/chat/page"; // 혹은 특정 채팅방 URL
+        for (ChatParticipant participant : chatParticipants) {
+            if (!participant.getMember().equals(sender)) {
+                notificationService.send(participant.getMember(), NotificationType.CHAT, "new chat", url, null, savedMessage.getCreatedTime());
+            }
+        }
+
+        // 5. 컨트롤러와 클라이언트에게 전달할 최종 DTO 반환
+        return ChatMessageDto.builder()
+                .roomId(chatRoom.getId())
+                .message(savedMessage.getContent())
+                .senderEmail(sender.getEmail())
+                .createdTime(savedMessage.getCreatedTime())
+                .build();
+
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ChatMemberDto> getChatRoomMembers(Long roomId, Pageable pageable) throws AccessDeniedException {
+        // 1. 현재 요청을 보낸 사용자가 이 채팅방의 참여자인지 확인하여 권한을 검증합니다.
+        Member currentUser = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new EntityNotFoundException("현재 로그인된 사용자를 찾을 수 없습니다."));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
+        boolean isParticipant = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, currentUser);
+        if (!isParticipant) {
+            throw new AccessDeniedException("채팅방 멤버를 조회할 권한이 없습니다.");
+        }
+
+        // 2. 해당 채팅방의 모든 참여자(ChatParticipant) 목록을 가져옵니다.
+        Page<ChatParticipant> participantsPage = chatParticipantRepository.findByChatRoom(chatRoom, pageable);
+
+        // 3. 참여자 목록을 ChatMemberDto 목록으로 변환하여 반환합니다.
+        // 3. Page 객체의 map 함수를 사용하여 Page<ChatParticipant>를 Page<ChatMemberDto>로 변환합니다.
+        return participantsPage.map(participant -> new ChatMemberDto(
+                participant.getMember().getId(),
+                participant.getMember().getNickname(),
+                participant.getMember().getAvatar()
+        ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ChatMemberDto> getChatRoomMembers(Long roomId, String nickname, Pageable pageable) throws AccessDeniedException {
+        // 1. 권한 검증 (기존과 동일)
+        Member currentUser = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new EntityNotFoundException("현재 로그인된 사용자를 찾을 수 없습니다."));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
+        boolean isParticipant = chatParticipantRepository.existsByChatRoomAndMember(chatRoom, currentUser);
+        if (!isParticipant) {
+            throw new AccessDeniedException("채팅방 멤버를 조회할 권한이 없습니다.");
+        }
+
+        // 2. 닉네임 검색어 유무에 따라 다른 메소드를 호출합니다.
+        Page<ChatParticipant> participantsPage;
+        if (nickname != null && !nickname.isBlank()) {
+            // 검색어가 있으면 검색 쿼리 실행
+            participantsPage = chatParticipantRepository.findByChatRoomAndMemberNicknameContaining(chatRoom, nickname, pageable);
+        } else {
+            // 검색어가 없으면 전체 멤버 조회
+            participantsPage = chatParticipantRepository.findByChatRoom(chatRoom, pageable);
+        }
+
+        // 3. Page<ChatParticipant>를 Page<ChatMemberDto>로 변환하여 반환합니다.
+        return participantsPage.map(participant -> new ChatMemberDto(
+                participant.getMember().getId(),
+                participant.getMember().getNickname(),
+                participant.getMember().getAvatar()
+        ));
+    }
 }
+
