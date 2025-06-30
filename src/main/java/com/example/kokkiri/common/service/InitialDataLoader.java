@@ -8,6 +8,13 @@ import com.example.kokkiri.calendar.repository.CalendarRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.problem.domain.DailyProblem;
+import com.example.kokkiri.problem.domain.DailyRanking;
+import com.example.kokkiri.problem.domain.ProblemSubmission;
+import com.example.kokkiri.problem.domain.SubmissionStatus;
+import com.example.kokkiri.problem.repository.DailyProblemRepository;
+import com.example.kokkiri.problem.repository.DailyRankingRepository;
+import com.example.kokkiri.problem.repository.ProblemSubmissionRepository;
 import com.example.kokkiri.team.domain.Team;
 import com.example.kokkiri.team.repository.TeamRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +24,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -32,6 +40,13 @@ public class InitialDataLoader implements CommandLineRunner {
     private BoardTypeRepository boardTypeRepository;
     @Autowired
     private CalendarRepository calendarRepository;
+    @Autowired
+    private DailyProblemRepository dailyProblemRepository;
+    @Autowired
+    private DailyRankingRepository dailyRankingRepository;
+    @Autowired
+    private ProblemSubmissionRepository problemSubmissionRepository;
+
 
     private void createTestUser(String email, String nickname, Role role, Team team) {
         if (memberRepository.findByEmail(email).isEmpty()) {
@@ -58,6 +73,76 @@ public class InitialDataLoader implements CommandLineRunner {
         }
     }
 
+    private void insertDailyProblemData() {
+        if (dailyProblemRepository.count() == 0) {
+            // 오늘 날짜로 샘플 문제 생성
+            DailyProblem todayProblem = DailyProblem.builder()
+                    .problemDate(LocalDate.now())
+                    .title("두 수의 합")
+                    .description("두 정수 A와 B를 입력받은 다음, A+B를 출력하는 프로그램을 작성하시오.")
+                    .inputDescription("첫째 줄에 A와 B가 주어진다. (0 < A, B < 10)")
+                    .outputDescription("첫째 줄에 A+B를 출력한다.")
+                    .sampleInput("1 2")
+                    .sampleOutput("3")
+                    .timeLimit(1000)
+                    .memoryLimit(128)
+                    .isActive("Y")
+                    .build();
+            
+            dailyProblemRepository.save(todayProblem);
+        }
+    }
+
+    private void insertDailyRankingData() {
+        if (dailyRankingRepository.count() == 0) {
+            // 오늘 문제와 멤버들 조회
+            DailyProblem todayProblem = dailyProblemRepository.findTodayProblem().orElse(null);
+            if (todayProblem == null) return;
+            
+            List<Member> members = memberRepository.findAll().stream()
+                    .filter(member -> member.getRole() == Role.USER)
+                    .limit(4)
+                    .toList();
+            
+            if (members.size() < 4) return;
+            
+            LocalDateTime baseTime = LocalDateTime.now().minusHours(2);
+            
+            for (int i = 0; i < 4; i++) {
+                Member member = members.get(i);
+                
+                // 문제 제출 기록 생성
+                ProblemSubmission submission = ProblemSubmission.builder()
+                        .dailyProblem(todayProblem)
+                        .member(member)
+                        .sourceCode("import java.util.Scanner;\n\npublic class Solution {\n    public static void main(String[] args) {\n        // 두 수의 합 구하기\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}")
+                        .language("JAVA")
+                        .status(SubmissionStatus.ACCEPTED)
+                        .executionTime(100 + (i * 50))
+                        .memoryUsage(1024 + (i * 100))
+                        .judgeResult("Accepted")
+                        .submissionTime(baseTime.plusMinutes(i * 15))
+                        .judgeTime(baseTime.plusMinutes(i * 15).plusSeconds(5))
+                        .build();
+                
+                problemSubmissionRepository.save(submission);
+                
+                // 랭킹 데이터 생성
+                DailyRanking ranking = DailyRanking.builder()
+                        .dailyProblem(todayProblem)
+                        .member(member)
+                        .submission(submission)
+                        .rankPosition(i + 1)
+                        .solveTime(baseTime.plusMinutes(i * 15))
+                        .submissionCount(i + 1)
+                        .executionTime(100 + (i * 50))
+                        .build();
+                
+                dailyRankingRepository.save(ranking);
+            }
+        }
+    }
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
@@ -77,6 +162,13 @@ public class InitialDataLoader implements CommandLineRunner {
 
         Member admin = memberRepository.findByEmail("admin@naver.com").orElseThrow();
         insertInitialCalendars(admin, testTeam);
+
+        // Daily Problem 데이터 삽입
+        insertDailyProblemData();
+        
+        // Daily Ranking 데이터 삽입 (문제와 멤버가 생성된 후)
+        insertDailyRankingData();
+
     }
 
     private void insertInitialCalendars(Member admin, Team team) {

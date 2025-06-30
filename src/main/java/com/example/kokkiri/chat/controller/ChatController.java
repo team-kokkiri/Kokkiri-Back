@@ -1,5 +1,6 @@
 package com.example.kokkiri.chat.controller;
 
+import com.example.kokkiri.chat.dto.ChatMemberDto;
 import com.example.kokkiri.chat.dto.ChatMessageDto;
 import com.example.kokkiri.chat.dto.ChatRoomListResDto;
 import com.example.kokkiri.chat.dto.MyChatListResDto;
@@ -11,7 +12,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -96,8 +100,10 @@ public class ChatController {
     // 그룹 채팅 초대 수락
     @PostMapping("/invitations/{invitationId}/accept")
     public ResponseEntity<?> acceptInvitation(@PathVariable Long invitationId){
-        chatService.acceptInvitation(invitationId);
-        return ResponseEntity.ok().build();
+        Long joinedRoomId = chatService.acceptInvitation(invitationId);
+        Map<String, Long> response = new HashMap<>();
+        response.put("roomId", joinedRoomId);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     // 그룹 채팅 초대 거절
@@ -107,7 +113,27 @@ public class ChatController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 특정 채팅방의 멤버 목록을 조회하는 API
+     * @param roomId 채팅방 ID
+     * @return 채팅방 멤버 정보 리스트 (memberId, nickname, avatarUrl)
+     */
+//    @GetMapping("/room/{roomId}/members")
+//    public ResponseEntity<?> getChatRoomMembers(
+//            @PathVariable Long roomId,
+//            @PageableDefault(size = 20) Pageable pageable) throws AccessDeniedException {
+//        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, pageable);
+//        return ResponseEntity.ok(members);
+//    }
 
+    @GetMapping("/room/{roomId}/members")
+    public ResponseEntity<?> getChatRoomMembers(
+            @PathVariable Long roomId,
+            @RequestParam(required = false) String nickname,
+            @PageableDefault(size = 20) Pageable pageable) throws AccessDeniedException {
+        Page<ChatMemberDto> members = chatService.getChatRoomMembers(roomId, nickname, pageable);
+        return ResponseEntity.ok(members);
+    }
 
 
 }

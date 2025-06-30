@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLDelete(sql = "UPDATE board SET del_yn = 'Y' WHERE id = ?")
+//@SQLDelete(sql = "UPDATE board SET del_yn = 'Y' WHERE id = ?")
 //@Where(clause = "delYn = 'N'")
 public class Board extends BaseTimeEntity {
 
@@ -29,7 +28,7 @@ public class Board extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String boardTitle;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10000)
     private String boardContent;
 
     @Column(nullable = false, length = 1)
@@ -39,6 +38,9 @@ public class Board extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private Integer likeCount = 0;
+
+    @Column(nullable = false)
+    private int reportCount = 0;
 
     @Column(nullable = false)
     private Boolean questionYn = false;
@@ -54,7 +56,7 @@ public class Board extends BaseTimeEntity {
     @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
     private List<BoardLike> boardLikes = new ArrayList<>();
 
-    @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE)
+    @OneToMany(mappedBy = "board", cascade = CascadeType.REMOVE, orphanRemoval = true)
     @OrderBy("createdTime ASC")
     private List<Comment> boardComments = new ArrayList<>();
 
@@ -67,6 +69,11 @@ public class Board extends BaseTimeEntity {
         this.boardContent = content;
     }
 
+    // 게시글 삭제
+    public void markDeleted() {
+        this.delYn = "Y";
+    }
+
     // 게시글 좋아요
     public void increaseLikeCount() {
         this.likeCount += 1;
@@ -75,6 +82,11 @@ public class Board extends BaseTimeEntity {
     // 질문글에서 일반글으로 변경
     public void setQuestionYn(boolean questionYn) {
         this.questionYn = questionYn;
+    }
+
+    // 신고 카운트 증가
+    public void increaseReportCount() {
+        this.reportCount++;
     }
 
 }

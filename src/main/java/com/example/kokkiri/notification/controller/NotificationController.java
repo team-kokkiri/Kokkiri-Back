@@ -47,15 +47,23 @@ public class NotificationController {
     }
 
     // 알림 읽음 처리
-    @PostMapping("/update/read/{notificationId}")
-    public ResponseEntity<?> updateNotificationReadStatus(@PathVariable Long notificationId){
-        notificationService.updateNotificationReadStatus(notificationId);
+//    @PostMapping("/update/read/{notificationId}")
+//    public ResponseEntity<?> updateNotificationReadStatus(@PathVariable Long notificationId){
+//        notificationService.updateNotificationReadStatus(notificationId);
+//        return ResponseEntity.ok().build();
+//    }
+
+    // 채팅 알림 읽음 처리
+    @PostMapping("/read-chat")
+    public ResponseEntity<?> readAllChatNotifications() {
+        notificationService.markChatNotificationsAsRead();
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/read/chat")
-    public ResponseEntity<?> readAllChatNotifications() {
-        notificationService.markChatNotificationsAsRead();
+    // 알림 전체 읽음 처리
+    @PostMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead() {
+        notificationService.markAllAsRead();
         return ResponseEntity.ok().build();
     }
 

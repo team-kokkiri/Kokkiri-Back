@@ -1,6 +1,7 @@
 package com.example.kokkiri.member.domain;
 
 import com.example.kokkiri.calendar.domain.CalendarEntity;
+import com.example.kokkiri.common.domain.BaseTimeEntity;
 import com.example.kokkiri.team.domain.Team;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,7 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Member implements UserDetails {  // UserDetails 구현
+public class Member extends BaseTimeEntity implements UserDetails {  // UserDetails 구현
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -20,5 +20,6 @@ public class BoardDetailResDto {
     private int commentCount;
     private LocalDateTime boardCreatedAt;
     private List<CommentListResDto> comments;
-    private List<String> fileUrls;
+    private List<String> fileUrls;  // 기존 호환성을 위해 유지
+    private List<BoardFileDto> files;  // 파일 상세 정보 추가
 }
