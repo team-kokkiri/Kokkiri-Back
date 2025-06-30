@@ -266,11 +266,12 @@ public class BoardService {
         Member postWriter = board.getMember();
         if (!postWriter.getId().equals(member.getId())) {
             String content = member.getNickname() + "님이 회원님의 게시글을 좋아합니다.";
-            notificationService.send(
+            String url = "/" + board.getBoardType().getId() + "/" + board.getId();
+                    notificationService.send(
                     postWriter,
                     NotificationType.LIKE_BOARD,
                     content,
-                    String.valueOf(board.getId()),
+                    url,
                     null,
                     saveBoardLike.getCreatedTime()
             );
