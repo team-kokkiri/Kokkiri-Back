@@ -15,6 +15,7 @@ import java.util.Optional;
 
 public interface ChatParticipantRepository extends JpaRepository<ChatParticipant, Long> {
     List<ChatParticipant> findByChatRoom(ChatRoom chatRoom);
+    Page<ChatParticipant> findByChatRoom(ChatRoom chatRoom, Pageable pageable);
     Optional<ChatParticipant> findByChatRoomAndMember(ChatRoom chatRoom, Member member);
     List<ChatParticipant> findAllByMember(Member member);
 
@@ -78,4 +79,15 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     """)
     List<MyChatListResDto> findChatRoomDetailsByRoomIds(@Param("member") Member member, @Param("roomIds") List<Long> roomIds);
 
+    // 채팅방 내에서 닉네임으로 멤버를 검색하는 페이징 메소드
+    @Query("""
+    SELECT cp FROM ChatParticipant cp
+    WHERE cp.chatRoom = :chatRoom
+      AND cp.member.nickname LIKE %:nickname%
+    """)
+    Page<ChatParticipant> findByChatRoomAndMemberNicknameContaining(
+            @Param("chatRoom") ChatRoom chatRoom,
+            @Param("nickname") String nickname,
+            Pageable pageable
+    );
 }
