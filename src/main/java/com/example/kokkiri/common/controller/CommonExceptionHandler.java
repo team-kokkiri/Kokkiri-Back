@@ -90,4 +90,20 @@ public class CommonExceptionHandler {
         return new ResponseEntity<>(commonErrorDto, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<CommonErrorDto> RuntimeExceptionHandler(RuntimeException e){
+        e.printStackTrace();
+        
+        // 파일 업로드 관련 에러 처리
+        if (e.getMessage() != null && e.getMessage().contains("Failed to store file")) {
+            CommonErrorDto commonErrorDto = new CommonErrorDto(HttpStatus.INTERNAL_SERVER_ERROR.value(), 
+                "파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.");
+            return new ResponseEntity<>(commonErrorDto, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        
+        CommonErrorDto commonErrorDto = new CommonErrorDto(HttpStatus.INTERNAL_SERVER_ERROR.value(), 
+            e.getMessage() != null ? e.getMessage() : "예상치 못한 오류가 발생했습니다.");
+        return new ResponseEntity<>(commonErrorDto, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
 }

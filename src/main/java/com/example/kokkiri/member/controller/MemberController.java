@@ -165,22 +165,51 @@ public class MemberController {
     }
 
     //마이페이지안에서 (이미지 변경api)
-    @PostMapping("/api/members/profile-image")
+    @PostMapping("/profile-image")
     public ResponseEntity<?> uploadProfileImage(@RequestParam("file") MultipartFile file, Principal principal) {
-        // 1. 파일 저장
-        String imageUrl = fileStorageService.store(file);
+        try {
+            log.info("프로필 이미지 업로드 시작 - 사용자: {}, 파일명: {}, 파일크기: {} bytes", 
+                    principal.getName(), file.getOriginalFilename(), file.getSize());
+            
+            // 파일 유효성 검사
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "파일이 비어있습니다."));
+            }
+            
+            // 파일 크기 체크 (5MB)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(Map.of("error", "파일 크기는 5MB를 초과할 수 없습니다."));
+            }
+            
+            // 파일 타입 체크
+            String contentType = file.getContentType();
+            if (contentType == null || (!contentType.startsWith("image/"))) {
+                return ResponseEntity.badRequest().body(Map.of("error", "이미지 파일만 업로드 가능합니다."));
+            }
 
-        // 2. 로그인한 멤버 조회
-        Member member = memberRepository.findByEmailAndIsDeleted
-(principal.getName(),"N")
-                .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
+            // 1. 파일 저장
+            String imageUrl = fileStorageService.store(file);
+            log.info("파일 저장 완료 - URL: {}", imageUrl);
 
-        // 3. 프로필 이미지 URL 업데이트
-        member.setAvatar(imageUrl);
-        memberRepository.save(member);
+            // 2. 로그인한 멤버 조회
+            Member member = memberRepository.findByEmailAndIsDeleted(principal.getName(),"N")
+                    .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
 
-        // 4. 응답
-        return ResponseEntity.ok(Map.of("profileImageUrl", imageUrl));
+            // 3. 프로필 이미지 URL 업데이트
+            member.setAvatar(imageUrl);
+            memberRepository.save(member);
+            
+            log.info("프로필 이미지 업데이트 완료 - 사용자: {}, 새 이미지 URL: {}", 
+                    principal.getName(), imageUrl);
+
+            // 4. 응답
+            return ResponseEntity.ok(Map.of("profileImageUrl", imageUrl));
+            
+        } catch (Exception e) {
+            log.error("프로필 이미지 업로드 실패 - 사용자: {}, 오류: {}", principal.getName(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "프로필 이미지 업로드 중 오류가 발생했습니다."));
+        }
     }
 
     // 리프레시 토큰으로 액세스 토큰 재발급
