@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,7 +37,7 @@ public class MemberService {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
-    // ✅ 회원가입 - state 기반 teamCode 조회로 변경
+    //  회원가입 - state 기반 teamCode 조회로 변경
     public void signup(MemberSignupReqDto request) {
         // 1. 이메일 인증 확인
         if (!emailService.isEmailVerified(request.getEmail(), "signup")) {
@@ -56,7 +57,8 @@ public class MemberService {
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 팀 코드입니다."));
 
         // 4. 이메일 중복 체크
-        if (memberRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (memberRepository.findByEmailAndIsDeleted
+(request.getEmail(), "N").isPresent()) {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
         }
 
@@ -91,7 +93,8 @@ public class MemberService {
 
     // 로그인
     public Member login(MemberLoginReqDto request) {
-        Member member = memberRepository.findByEmail(request.getEmail())
+        Member member = memberRepository.findByEmailAndIsDeleted
+(request.getEmail(), "N")
                 .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다."));
 
         if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
@@ -109,7 +112,8 @@ public class MemberService {
         }
 
         // 2. 회원 존재 확인
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+(email,"N")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
         // 3. 비밀번호 암호화 후 저장
@@ -137,7 +141,7 @@ public class MemberService {
 
 //    // 내 정보 조회용 DTO 반환
 //    public MemberInfoResDto getMyInfo(String email) {
-//        Member member = memberRepository.findByEmail(email)
+//        Member member = memberRepository.findByEmailAndIsDelete(email)
 //                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 //        return new MemberInfoResDto(member.getId(), member.getEmail(), member.getNickname(), member.getRole().name(),member.getAvatar());
 //    }
@@ -191,7 +195,9 @@ public class MemberService {
         }
 
         // 2. 회원 조회
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         // 3. 닉네임 변경
@@ -200,7 +206,9 @@ public class MemberService {
 
     @Transactional
     public void changePassword(String email, String currentPassword, String newPassword) {
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         if (!passwordEncoder.matches(currentPassword, member.getPassword())) {
@@ -214,6 +222,17 @@ public class MemberService {
         // 새 비밀번호 암호화 후 저장
         member.setPassword(passwordEncoder.encode(newPassword));
     }
+
+    //회원 소프트삭제 + 익명화
+    public void withdraw(Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        member.setIsDeleted("Y");
+        member.setEmail("deleted_" + memberId + "_" + UUID.randomUUID() + "@deleted.com");
+        member.setNickname("탈퇴회원_" + memberId);
+        member.setPassword(null);
+        memberRepository.save(member);
+    }
+
 }
 
 

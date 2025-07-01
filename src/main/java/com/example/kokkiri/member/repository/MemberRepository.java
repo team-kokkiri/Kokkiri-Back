@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Long> {
-    Optional<Member> findByEmail(String email);
+//    Optional<Member> findByEmailAndIsDelete(String email);
     Optional<Member> findByNickname(String nickname);
     @Query("""
     SELECT m FROM Member m
@@ -39,4 +39,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     // 관리자용 전체 회원 목록 조회 (본인 제외, 페이징)
     @Query("SELECT m FROM Member m WHERE m.id != :currentMemberId ORDER BY m.createdTime DESC")
     Page<Member> findAllMembersExceptCurrent(@Param("currentMemberId") Long currentMemberId, Pageable pageable);
+
+    // 기존findbyemail 수정(회원탈퇴때문에)
+    Optional<Member> findByEmailAndIsDeleted(String email, String isDeleted);
 }

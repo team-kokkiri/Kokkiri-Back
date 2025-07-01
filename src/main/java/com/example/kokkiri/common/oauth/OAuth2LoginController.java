@@ -27,7 +27,9 @@ public class OAuth2LoginController {
             HttpServletResponse response
     ) {
         String email = authentication.getName();
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
 
         String role = member.getRole().name();

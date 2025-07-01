@@ -150,7 +150,9 @@ public class NotificationService {
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public Member getCurrentMember(String email) {
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
         return member;
     }

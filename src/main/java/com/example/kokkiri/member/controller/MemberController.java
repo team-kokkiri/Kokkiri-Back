@@ -149,7 +149,8 @@ public class MemberController {
 
         String email = authentication.getName(); // 현재 설정에서 username이 email이라고 가정
 
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+(email, "N")
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
 
         MemberInfoResDto response = new MemberInfoResDto(
@@ -170,7 +171,8 @@ public class MemberController {
         String imageUrl = fileStorageService.store(file);
 
         // 2. 로그인한 멤버 조회
-        Member member = memberRepository.findByEmail(principal.getName())
+        Member member = memberRepository.findByEmailAndIsDeleted
+(principal.getName(),"N")
                 .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
 
         // 3. 프로필 이미지 URL 업데이트
@@ -201,7 +203,8 @@ public class MemberController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("저장된 Refresh token과 일치하지 않습니다.");
         }
 
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+(email, "N")
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
 
         String newAccessToken = jwtUtil.generateToken(
@@ -291,17 +294,16 @@ public class MemberController {
         }
     }
 
-    //회원탈퇴
+    //회원탈퇴(소프트삭제)
     @DeleteMapping
     public ResponseEntity<String> deleteMember(Authentication authentication) {
         String email = authentication.getName();
-
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+(email, "N")
                 .orElseThrow(() -> new UsernameNotFoundException("회원 정보를 찾을 수 없습니다."));
 
-        memberRepository.delete(member); // DB에서 완전 삭제
-
-        return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
+        memberService.withdraw(member.getId());
+        return ResponseEntity.ok("회원 탈퇴(소프트 삭제) 및 개인정보가 익명화되었습니다.");
     }
 
 }

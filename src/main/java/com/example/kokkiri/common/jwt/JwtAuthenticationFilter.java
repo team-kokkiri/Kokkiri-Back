@@ -43,7 +43,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtUtil.validateToken(token)) {
                     String email = jwtUtil.getEmailFromToken(token);
-                    Member member = memberRepository.findByEmail(email)
+                    Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                             .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
 
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + member.getRole().name());

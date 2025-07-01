@@ -49,7 +49,9 @@ public class InitialDataLoader implements CommandLineRunner {
 
 
     private void createTestUser(String email, String nickname, Role role, Team team) {
-        if (memberRepository.findByEmail(email).isEmpty()) {
+        if (memberRepository.findByEmailAndIsDeleted
+
+(email,"N").isEmpty()) {
             memberRepository.save(Member.builder()
                     .email(email)
                     .password(passwordEncoder.encode("1234"))
@@ -160,7 +162,9 @@ public class InitialDataLoader implements CommandLineRunner {
             createTestUser("test" + i + "@naver.com", "test" + i, Role.USER, testTeam);
         }
 
-        Member admin = memberRepository.findByEmail("admin@naver.com").orElseThrow();
+        Member admin = memberRepository.findByEmailAndIsDeleted
+
+("admin@naver.com","N").orElseThrow();
         insertInitialCalendars(admin, testTeam);
 
         // Daily Problem 데이터 삽입
