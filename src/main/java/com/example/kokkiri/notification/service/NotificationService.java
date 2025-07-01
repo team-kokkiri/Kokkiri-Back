@@ -166,7 +166,9 @@ public class NotificationService {
     // =================  PRIVATE HELPER METHODS  ================= //
 
     public Member getCurrentMember(String email) {
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmailAndIsDeleted
+
+(email,"N")
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
         return member;
     }

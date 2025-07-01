@@ -43,6 +43,10 @@ public class Member extends BaseTimeEntity implements UserDetails {  // UserDeta
     @Builder.Default
     private String isActive = "Y";
 
+    @Column(nullable = false, length = 1)
+    @Builder.Default
+    private String isDeleted = "N";
+
     @Column(length = 500)
     private String avatar;  // 프로필 사진 URL 저장
 

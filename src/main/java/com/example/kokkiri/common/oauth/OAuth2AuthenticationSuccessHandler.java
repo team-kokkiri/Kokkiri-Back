@@ -33,7 +33,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getEmail();
 
-        Optional<Member> optionalMember = memberRepository.findByEmail(email);
+        Optional<Member> optionalMember = memberRepository.findByEmailAndIsDeleted
+
+(email,"N");
 
         // 신규 회원 여부는 DB 기준으로만 판단 (CustomOAuth2User의 isNewUser 체크 제거)
         if (optionalMember.isEmpty()) {

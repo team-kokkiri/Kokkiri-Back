@@ -60,7 +60,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         // 2. 기존 회원이면 바로 리턴
-        Optional<Member> existingUser = memberRepository.findByEmail(email);
+        Optional<Member> existingUser = memberRepository.findByEmailAndIsDeleted
+
+(email,"N");
         if (existingUser.isPresent()) {
             Member member = existingUser.get();
             return new CustomOAuth2User(

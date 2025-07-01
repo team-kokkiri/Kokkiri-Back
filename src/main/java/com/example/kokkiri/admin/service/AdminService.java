@@ -66,7 +66,9 @@ public class AdminService {
     public Page<AdminMemberListResDto> getAllMembers(Pageable pageable) {
         // 현재 로그인한 관리자 정보 조회
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        Member currentMember = memberRepository.findByEmail(currentUserEmail)
+        Member currentMember = memberRepository.findByEmailAndIsDeleted
+
+(currentUserEmail,"N")
                 .orElseThrow(() -> new RuntimeException("로그인한 사용자를 찾을 수 없습니다."));
         
         // 본인을 제외한 전체 회원 목록 조회

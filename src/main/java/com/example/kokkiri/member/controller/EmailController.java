@@ -31,12 +31,15 @@ public class EmailController {
             // type 별 이메일 존재 여부 체크
             if ("signup".equals(type)) {
                 // 회원가입이면 이미 가입된 이메일은 보내면 안됨
-                if (memberRepository.findByEmail(email).isPresent()) {
+                if (memberRepository.findByEmailAndIsDeleted
+
+(email,"N").isPresent()) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("이미 가입된 이메일입니다.");
                 }
             } else if ("reset".equals(type)) {
                 // 비밀번호 재설정이면 이메일이 가입된 상태여야 함
-                if (memberRepository.findByEmail(email).isEmpty()) {
+                if (memberRepository.findByEmailAndIsDeleted
+(email,"N").isEmpty()) {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("가입된 이메일이 아닙니다.");
                 }
             } else {
