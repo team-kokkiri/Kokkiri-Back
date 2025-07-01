@@ -10,5 +10,5 @@ public class MemberInfoResDto {
     private String email;
     private String nickname;
     private String role;
-    private String avatarUrl;
+    private String avatar; // avatarUrl에서 avatar로 변경
 }

@@ -149,10 +149,11 @@ public class MemberController {
 
         String email = authentication.getName(); // 현재 설정에서 username이 email이라고 가정
 
-        Member member = memberRepository.findByEmailAndIsDeleted
-(email, "N")
+        Member member = memberRepository.findByEmailAndIsDeleted(email, "N")
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
 
+        log.info("/me API 호출 - 사용자: {}, DB에서 가져온 avatar: {}", email, member.getAvatar());
+        
         MemberInfoResDto response = new MemberInfoResDto(
                 member.getId(),
                 member.getEmail(),
@@ -160,6 +161,8 @@ public class MemberController {
                 member.getRole().name(),
                 member.getAvatar()
         );
+        
+        log.info("/me API 응답 - avatar: {}", response.getAvatar());
 
         return ResponseEntity.ok(response);
     }
