@@ -90,4 +90,6 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
             @Param("nickname") String nickname,
             Pageable pageable
     );
+
+    int countByChatRoom(ChatRoom chatRoom);
 }
