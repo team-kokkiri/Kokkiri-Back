@@ -174,6 +174,7 @@ public class BoardService {
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
+                .memberId(board.getMember().getId())
                 .writer(board.getMember().getNickname())
                 .likeCount(board.getLikeCount())
                 .commentCount(Math.toIntExact(visibleCommentCount))
