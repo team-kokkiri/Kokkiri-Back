@@ -7,9 +7,6 @@ import com.example.kokkiri.report.dto.ReportListResDto;
 import com.example.kokkiri.report.dto.ReportReqDto;
 import com.example.kokkiri.report.service.ReportService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,11 +46,9 @@ public class ReportController {
     // 신고 리스트 조회 (status 필터링)
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public Page<ReportListResDto> getReports(@RequestParam(defaultValue = "PENDING") ReportStatus status,
-                                             @RequestParam(defaultValue = "0") int page,
-                                             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return reportService.getReportList(status, pageable);
+    public ResponseEntity<List<ReportListResDto>> getReports(@RequestParam(defaultValue = "PENDING") ReportStatus status) {
+        List<ReportListResDto> reports = reportService.getReportList(status);
+        return ResponseEntity.ok(reports);
     }
 
     // 상태 변경 (예: 관리자 처리 완료 등)

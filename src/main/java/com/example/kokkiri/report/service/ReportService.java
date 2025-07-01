@@ -13,10 +13,10 @@ import com.example.kokkiri.report.dto.ReportReqDto;
 import com.example.kokkiri.report.repository.ReportRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @Transactional
@@ -63,31 +63,20 @@ public class ReportService {
                 .build();
         reportRepository.save(report);
 
-        // 4. 신고 카운트 증가 + 자동 숨김 처리
+        // 4. 신고 카운트 증가
         switch (reportReqDto.getReportType()) {
             case POST -> boardRepository.findById(reportReqDto.getTargetId())
-                    .ifPresent(board -> {
-                        board.increaseReportCount();
-                        if (board.getReportCount() >= 5 && !"Y".equals(board.getDelYn())) {
-                            board.markDeleted();
-                        }
-                    });
-
+                    .ifPresent(Board::increaseReportCount);
             case COMMENT, REPLY -> commentRepository.findById(reportReqDto.getTargetId())
-                    .ifPresent(comment -> {
-                        comment.increaseReportCount();
-                        if (comment.getReportCount() >= 5 && !"Y".equals(comment.getDelYn())) {
-                            comment.markDeleted();
-                        }
-                    });
+                    .ifPresent(Comment::increaseReportCount);
         }
     }
 
     // 신고 리스트 조회
-    public Page<ReportListResDto> getReportList(ReportStatus status, Pageable pageable) {
-        Page<Report> reports = reportRepository.findAllByStatus(status, pageable);
+    public List<ReportListResDto> getReportList(ReportStatus status) {
+        List<Report> reports = reportRepository.findAllByStatus(status);
 
-        return reports.map(report -> {
+        return reports.stream().map(report -> {
             String preview = getContentPreview(report.getReportType(), report.getTargetId());
             long reportCount = switch (report.getReportType()) {
                 case POST -> boardRepository.findById(report.getTargetId())
@@ -96,18 +85,36 @@ public class ReportService {
                         .map(Comment::getReportCount).orElse(0);
             };
 
+            Long boardId = null;
+            Long boardTypeId = null;
+
+            if (report.getReportType() == ReportType.POST) {
+                boardId = report.getTargetId();
+                boardTypeId = boardRepository.findById(boardId)
+                        .map(b -> b.getBoardType().getId())
+                        .orElse(null);
+            } else {
+                Comment comment = commentRepository.findById(report.getTargetId()).orElse(null);
+                if (comment != null) {
+                    boardId = comment.getBoard().getId();
+                    boardTypeId = comment.getBoard().getBoardType().getId();
+                }
+            }
+
             return ReportListResDto.builder()
                     .reportId(report.getReportId())
                     .reportType(report.getReportType().name())
                     .targetId(report.getTargetId())
                     .reportReason(report.getReportReason().name())
                     .reportCount(reportCount)
-                    .status(report.getStatus().name()) // Enum을 문자열로 변환
+                    .status(report.getStatus().name())
                     .reporterNickname(report.getReporter().getNickname())
                     .contentPreview(preview)
                     .createdAt(report.getCreatedTime().toString())
+                    .boardId(boardId)
+                    .boardTypeId(boardTypeId)
                     .build();
-        });
+        }).toList();
     }
 
     // 신고 대상 콘텐츠의 미리보기 텍스트
@@ -123,8 +130,9 @@ public class ReportService {
     // 신고 상태 병경
     public void updateReportStatus(Long reportId, ReportStatus status) {
         Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new EntityNotFoundException("신고 없음"));
+                .orElseThrow(() -> new EntityNotFoundException("ID " + reportId + "에 해당하는 신고가 존재하지 않습니다."));
         report.setStatus(status);
+        reportRepository.save(report);
     }
 }
 
