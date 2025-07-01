@@ -109,7 +109,7 @@ public class ChatService {
 
 
     public ChatResDto createGroupRoom(String chatRoomName){
-        Member member = memberRepositorymemberRepository.findByEmailAndIsDeleted(SecurityContextHolder.getContext().getAuthentication().getName(),"N")
+        Member member = memberRepository.findByEmailAndIsDeleted(SecurityContextHolder.getContext().getAuthentication().getName(),"N")
                 .orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
         // 채팅방 생성
