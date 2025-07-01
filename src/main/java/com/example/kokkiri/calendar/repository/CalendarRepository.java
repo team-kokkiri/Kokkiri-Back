@@ -16,6 +16,6 @@ public interface CalendarRepository extends JpaRepository<CalendarEntity, Long> 
     // 특정 멤버의 개인 일정 조회 (기간 내)
     List<CalendarEntity> findByMemberIdAndIsPublicFalseAndDateBetween(Long memberId, LocalDate startDate, LocalDate endDate);
 
-    // 특정 멤버의 모든 개인 일정 조회
-    List<CalendarEntity> findByMemberIdAndIsPublicFalse(Long memberId);
+    //db에 공용 일정 등록
+    boolean existsByTitleAndDateAndIsPublicTrue(String title, LocalDate date);
 }

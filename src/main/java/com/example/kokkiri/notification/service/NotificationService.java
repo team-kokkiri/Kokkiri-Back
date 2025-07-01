@@ -19,7 +19,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -148,7 +147,6 @@ public class NotificationService {
 
     // =================  PRIVATE HELPER METHODS  ================= //
 
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public Member getCurrentMember(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));

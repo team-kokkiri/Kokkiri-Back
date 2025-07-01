@@ -18,6 +18,9 @@ public class ReportListResDto {
     private String status;
     private String reporterNickname;
 
+    private Long boardId;          // COMMENT, REPLY 용 게시글 ID
+    private Long boardTypeId;      // COMMENT, REPLY 용 게시판 타입 ID
+
     private String contentPreview; // 게시글/댓글/대댓글 일부 미리보기
     private String createdAt;      // 생성일자
 }

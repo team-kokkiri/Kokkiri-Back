@@ -4,6 +4,7 @@ import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.repository.MemberRepository;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,8 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtUtil.validateToken(token)) {
                     String email = jwtUtil.getEmailFromToken(token);
-                    Member member = memberRepository.findByEmail(email)
-                            .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+                    Member member = memberRepository.findByEmail(email).orElseThrow(()-> new EntityNotFoundException("존재하지 않는 회원입니다."));
 
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + member.getRole().name());
                     UsernamePasswordAuthenticationToken authentication =

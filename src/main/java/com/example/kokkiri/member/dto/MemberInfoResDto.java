@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class MemberInfoResDto {
+    private Long id;
     private String email;
     private String nickname;
     private String role;

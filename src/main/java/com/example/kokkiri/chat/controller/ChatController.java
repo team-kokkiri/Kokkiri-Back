@@ -1,15 +1,14 @@
 package com.example.kokkiri.chat.controller;
 
-import com.example.kokkiri.chat.dto.ChatMemberDto;
-import com.example.kokkiri.chat.dto.ChatMessageDto;
-import com.example.kokkiri.chat.dto.ChatRoomListResDto;
-import com.example.kokkiri.chat.dto.MyChatListResDto;
+import com.example.kokkiri.chat.dto.*;
 import com.example.kokkiri.chat.service.ChatService;
+import com.example.kokkiri.member.domain.Member;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.AccessDeniedException;
@@ -32,8 +31,8 @@ public class ChatController {
     // 그룹 채팅방 개설
     @PostMapping("/room/group/create")
     public ResponseEntity<?> createGroupRoom(@RequestParam String roomName){
-        chatService.createGroupRoom(roomName);
-        return ResponseEntity.ok().build();
+        ChatResDto dto = chatService.createGroupRoom(roomName);
+        return ResponseEntity.ok(dto);
     }
 
     // 그룹 채팅 목록 조회

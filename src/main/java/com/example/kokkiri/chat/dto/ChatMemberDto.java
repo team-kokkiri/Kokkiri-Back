@@ -9,4 +9,5 @@ public class ChatMemberDto {
     private Long memberId;
     private String nickname;
     private String avatarUrl;
+    private String email;
 }
