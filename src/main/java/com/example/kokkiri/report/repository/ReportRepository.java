@@ -9,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+
 @Repository
 public interface ReportRepository extends JpaRepository<Report, Long> {
     // 신고 리스트 조회
@@ -19,4 +21,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     // 신고 횟수 조회
 //    long countByReportTypeAndTargetId(ReportType reportType, Long targetId);
+    
+    // 특정 시간 이후의 신고 수 조회 (관리자 대시보드용)
+    long countByCreatedTimeAfter(LocalDateTime dateTime);
 }
