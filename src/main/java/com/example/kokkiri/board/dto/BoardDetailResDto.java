@@ -16,6 +16,7 @@ public class BoardDetailResDto {
     private String boardTitle;
     private String boardContent;
     private String writer;
+    private Long memberId;
     private int likeCount;
     private int commentCount;
     private LocalDateTime boardCreatedAt;
