@@ -17,8 +17,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-//@SQLDelete(sql = "UPDATE board SET del_yn = 'Y' WHERE id = ?")
-//@Where(clause = "delYn = 'N'")
 public class Board extends BaseTimeEntity {
 
     @Id
