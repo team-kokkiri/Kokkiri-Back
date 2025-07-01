@@ -8,6 +8,7 @@ import com.example.kokkiri.board.repository.BoardRepository;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.repository.MemberRepository;
+import com.example.kokkiri.report.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,7 @@ public class AdminService {
     
     private final MemberRepository memberRepository;
     private final BoardRepository boardRepository;
+    private final ReportRepository reportRepository;
     
     /**
      * 관리자 대시보드 데이터 조회
@@ -44,8 +46,8 @@ public class AdminService {
         // 3. 오늘 작성된 게시글 수
         long todayBoardCount = boardRepository.countByCreatedTimeAfter(todayStart);
         
-        // 4. 오늘 신고 건수 (추후 구현 예정)
-        long todayReportCount = 0L;
+        // 4. 오늘 신고 건수
+        long todayReportCount = reportRepository.countByCreatedTimeAfter(todayStart);
         
         return AdminDashboardResDto.builder()
                 .totalMemberCount(totalMemberCount)

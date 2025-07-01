@@ -7,7 +7,9 @@ import com.example.kokkiri.report.domain.ReportType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
+
 
 @Repository
 public interface ReportRepository extends JpaRepository<Report, Long> {
@@ -16,5 +18,8 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     // 중복 신고 방지
     boolean existsByReporterAndReportTypeAndTargetId(Member reporter, ReportType reportType, Long targetId);
+    
+    // 특정 시간 이후의 신고 수 조회 (관리자 대시보드용)
+    long countByCreatedTimeAfter(LocalDateTime dateTime);
 
 }
