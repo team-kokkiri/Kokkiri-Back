@@ -19,7 +19,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -60,18 +59,36 @@ public class NotificationService {
         return sseEmitter;
     }
 
-    @Transactional
-    public void send(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
-        Notification notification = notificationRepository.save(createNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt));
-        String memberId = String.valueOf(receiver.getId());
+//    @Transactional
+//    public void send(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
+//        Notification notification = notificationRepository.save(createNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt));
+//        String memberId = String.valueOf(receiver.getId());
+//
+//        Map<String, SseEmitter> sseEmitters = emitterRepository.findAllEmitterStartWithByMemberId(memberId);
+//        sseEmitters.forEach((emitterId, emitter) -> {
+//            emitterRepository.saveEventCache(emitterId, notification);
+//            sendNotificationToClient(emitter, emitterId, notification);
+//        });
+//    }
 
+    @Transactional
+    public Notification createAndSaveNotification(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
+        Notification notification = createNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt);
+        return notificationRepository.save(notification);
+    }
+
+    public void send(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
+        // Step 1. DB에 알림 저장 (트랜잭션 완료)
+        Notification notification = createAndSaveNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt);
+
+        // Step 2. Emitter 조회 및 전송 (트랜잭션과 무관)
+        String memberId = String.valueOf(receiver.getId());
         Map<String, SseEmitter> sseEmitters = emitterRepository.findAllEmitterStartWithByMemberId(memberId);
         sseEmitters.forEach((emitterId, emitter) -> {
             emitterRepository.saveEventCache(emitterId, notification);
             sendNotificationToClient(emitter, emitterId, notification);
         });
     }
-
     @Transactional(readOnly = true)
     public NotificationPageResDto getNotifications(Long lastId, int size) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -148,7 +165,6 @@ public class NotificationService {
 
     // =================  PRIVATE HELPER METHODS  ================= //
 
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public Member getCurrentMember(String email) {
         Member member = memberRepository.findByEmailAndIsDeleted
 

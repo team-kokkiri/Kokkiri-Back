@@ -51,6 +51,13 @@ public class BoardService {
         BoardType boardType = boardTypeRepository.findById(boardCreateReqDto.getBoardTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
 
+        // 프로젝트 소개 게시판 이미지 1개 이상 첨부
+        if ("프로젝트소개".equals(boardType.getTypeName())) {
+            if (files == null || files.isEmpty()) {
+                throw new IllegalArgumentException("프로젝트 소개 글은 이미지 1개 이상 첨부가 필요합니다.");
+            }
+        }
+
         Board board = Board.builder()
                 .member(member)
                 .boardType(boardType)
@@ -121,7 +128,7 @@ public class BoardService {
                 // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
 //                .map(BoardFile::getFilePath)
                 .map(file -> "/api/files/" + file.getSavedName())
-                .orElse(null);
+                .orElse("/images/profile/images.png");
 
         return new BoardListResDto(
                 board.getId(),
@@ -166,7 +173,7 @@ public class BoardService {
         List<String> fileUrls = board.getBoardFiles().stream()
                 .map(file -> "/api/files/" + file.getSavedName())
                 .toList();
-                
+
         // 파일 상세 정보 생성
         List<BoardFileDto> files = board.getBoardFiles().stream()
                 .map(file -> BoardFileDto.builder()
@@ -185,6 +192,7 @@ public class BoardService {
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
+                .memberId(board.getMember().getId())
                 .writer(board.getMember().getNickname())
                 .likeCount(board.getLikeCount())
                 .commentCount(Math.toIntExact(visibleCommentCount))
@@ -266,11 +274,12 @@ public class BoardService {
         Member postWriter = board.getMember();
         if (!postWriter.getId().equals(member.getId())) {
             String content = member.getNickname() + "님이 회원님의 게시글을 좋아합니다.";
-            notificationService.send(
+            String url = "/" + board.getBoardType().getId() + "/" + board.getId();
+                    notificationService.send(
                     postWriter,
                     NotificationType.LIKE_BOARD,
                     content,
-                    String.valueOf(board.getId()),
+                    url,
                     null,
                     saveBoardLike.getCreatedTime()
             );
