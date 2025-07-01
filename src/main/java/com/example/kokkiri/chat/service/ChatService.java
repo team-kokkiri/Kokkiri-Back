@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ChatService {
+    private static final int MAX_PARTICIPANTS = 50;
+    private static final int MAX_MESSAGE_LENGTH = 500;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatParticipantRepository chatParticipantRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -37,6 +39,8 @@ public class ChatService {
     private final ChatInvitationRepository chatInvitationRepository;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
+
+
 
     public ChatService(ChatRoomRepository chatRoomRepository, ChatParticipantRepository chatParticipantRepository, ChatMessageRepository chatMessageRepository, ReadStatusRepository readStatusRepository, MemberRepository memberRepository, ChatInvitationRepository chatInvitationRepository, NotificationService notificationService, NotificationRepository notificationRepository) {
         this.chatRoomRepository = chatRoomRepository;
@@ -148,8 +152,12 @@ public class ChatService {
         // member 조회
         Member member = memberRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName()).orElseThrow(()->new EntityNotFoundException("member cannot be found"));
 
-        if (chatRoom.getIsGroupChat().equals("N")){
-            throw new IllegalArgumentException("그룹 채팅이 아닙니다.");
+
+        if (chatRoom.getIsGroupChat().equals("Y")) {
+            int currentCount = chatParticipantRepository.countByChatRoom(chatRoom);
+            if (currentCount >= MAX_PARTICIPANTS) {
+                throw new IllegalStateException("참여 인원 수 제한을 초과했습니다. (" + MAX_PARTICIPANTS + ")");
+            }
         }
         // 이미 참여자인지 검증
         Optional<ChatParticipant> participant = chatParticipantRepository.findByChatRoomAndMember(chatRoom, member);
@@ -302,8 +310,11 @@ public class ChatService {
     public void inviteMember(Long roomId, Long memberId){
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(()->new EntityNotFoundException("room cannot be found"));
 
-        if (chatRoom.getIsGroupChat().equals("N")){
-            throw new IllegalArgumentException("단체 채팅방이 아닙니다.");
+        if (chatRoom.getIsGroupChat().equals("Y")) {
+            int currentCount = chatParticipantRepository.countByChatRoom(chatRoom);
+            if (currentCount >= MAX_PARTICIPANTS) {
+                throw new IllegalStateException("참여 인원 수 제한을 초과했습니다. (" + MAX_PARTICIPANTS + ")");
+            }
         }
 
         Member invitedMember = memberRepository.findById(memberId)
@@ -382,6 +393,14 @@ public class ChatService {
      */
     @Transactional
     public ChatMessageDto processAndSaveMessage(Long roomId, ChatMessageDto chatMessageReqDto) {
+
+        if (chatMessageReqDto.getMessage() == null || chatMessageReqDto.getMessage().isBlank()) {
+            throw new IllegalArgumentException("메세지를 입력해주세요.");
+        }
+        if (chatMessageReqDto.getMessage().length() > MAX_MESSAGE_LENGTH) {
+            throw new IllegalArgumentException("메세지는 " + MAX_MESSAGE_LENGTH + "자를 초과할 수 없습니다.");
+        }
+
         // 1. 필요한 엔티티 조회
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " + roomId));
