@@ -129,6 +129,7 @@ public class AdminService {
                 .id(member.getId())
                 .email(member.getEmail())
                 .nickname(member.getNickname())
+                .avatar(member.getAvatar())  // 아바타 추가
                 .role(member.getRole())
                 .isActive(member.getIsActive())
                 .teamName(teamName)

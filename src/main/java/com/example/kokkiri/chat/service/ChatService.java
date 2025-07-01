@@ -87,6 +87,8 @@ public class ChatService {
                 .roomId(chatRoom.getId())
                 .message(savedMessage.getContent())
                 .senderEmail(sender.getEmail())
+                .nickname(sender.getNickname())
+                .avatar(sender.getAvatar())  // 메시지 작성자 아바타 추가
                 .createdTime(savedMessage.getCreatedTime())
                 .build();
     }
@@ -208,6 +210,7 @@ public class ChatService {
                     .senderEmail(c.getMember().getEmail())
                     .createdTime(c.getCreatedTime())
                     .nickname(c.getMember().getNickname())
+                    .avatar(c.getMember().getAvatar())  // 메시지 작성자 아바타 추가
                     .build();
             chatMessageDtos.add(chatMessageDto);
         }
@@ -466,6 +469,7 @@ public class ChatService {
                 .senderEmail(sender.getEmail())
                 .createdTime(savedMessage.getCreatedTime())
                 .nickname(sender.getNickname())
+                .avatar(sender.getAvatar())  // 메시지 작성자 아바타 추가
                 .build();
 
     }

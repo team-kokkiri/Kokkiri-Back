@@ -16,6 +16,7 @@ public class ChatMessageDto {
     private String message;
     private String senderEmail;
     private String nickname;
+    private String avatar;  // 메시지 작성자 아바타 추가
     private LocalDateTime createdTime;
 
 }
