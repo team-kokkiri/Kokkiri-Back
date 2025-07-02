@@ -51,7 +51,7 @@ public class InitialDataLoader implements CommandLineRunner {
     private void createTestUser(String email, String nickname, Role role, Team team) {
         if (memberRepository.findByEmailAndIsDeleted
 
-(email,"N").isEmpty()) {
+                (email, "N").isEmpty()) {
             memberRepository.save(Member.builder()
                     .email(email)
                     .password(passwordEncoder.encode("1234"))
@@ -90,7 +90,7 @@ public class InitialDataLoader implements CommandLineRunner {
                     .memoryLimit(128)
                     .isActive("Y")
                     .build();
-            
+
             dailyProblemRepository.save(todayProblem);
         }
     }
@@ -100,19 +100,19 @@ public class InitialDataLoader implements CommandLineRunner {
             // 오늘 문제와 멤버들 조회
             DailyProblem todayProblem = dailyProblemRepository.findTodayProblem().orElse(null);
             if (todayProblem == null) return;
-            
+
             List<Member> members = memberRepository.findAll().stream()
                     .filter(member -> member.getRole() == Role.USER)
                     .limit(4)
                     .toList();
-            
+
             if (members.size() < 4) return;
-            
+
             LocalDateTime baseTime = LocalDateTime.now().minusHours(2);
-            
+
             for (int i = 0; i < 4; i++) {
                 Member member = members.get(i);
-                
+
                 // 문제 제출 기록 생성
                 ProblemSubmission submission = ProblemSubmission.builder()
                         .dailyProblem(todayProblem)
@@ -126,9 +126,9 @@ public class InitialDataLoader implements CommandLineRunner {
                         .submissionTime(baseTime.plusMinutes(i * 15))
                         .judgeTime(baseTime.plusMinutes(i * 15).plusSeconds(5))
                         .build();
-                
+
                 problemSubmissionRepository.save(submission);
-                
+
                 // 랭킹 데이터 생성
                 DailyRanking ranking = DailyRanking.builder()
                         .dailyProblem(todayProblem)
@@ -139,7 +139,7 @@ public class InitialDataLoader implements CommandLineRunner {
                         .submissionCount(i + 1)
                         .executionTime(100 + (i * 50))
                         .build();
-                
+
                 dailyRankingRepository.save(ranking);
             }
         }
@@ -164,12 +164,12 @@ public class InitialDataLoader implements CommandLineRunner {
 
         Member admin = memberRepository.findByEmailAndIsDeleted
 
-("admin@naver.com","N").orElseThrow();
+                ("admin@naver.com", "N").orElseThrow();
         insertInitialCalendars(admin, testTeam);
 
         // Daily Problem 데이터 삽입
         insertDailyProblemData();
-        
+
         // Daily Ranking 데이터 삽입 (문제와 멤버가 생성된 후)
         insertDailyRankingData();
 

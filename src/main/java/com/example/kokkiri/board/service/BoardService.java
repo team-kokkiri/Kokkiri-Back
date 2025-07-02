@@ -14,6 +14,7 @@ import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.comment.service.CommentService;
 import com.example.kokkiri.common.service.FileService;
 import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.service.NotificationService;
@@ -243,8 +244,11 @@ public class BoardService {
     // 게시글 삭제
     public void softDeleteBoard(Long boardId, Member member) {
         Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
-        // 권한 체크
-        if (!board.getMember().getId().equals(member.getId())) {
+        // 권한 체크: 작성자 본인 또는 관리자
+        boolean isWriter = board.getMember().getId().equals(member.getId());
+        boolean isAdmin = member.getRole() == Role.ADMIN;
+
+        if (!isWriter && !isAdmin) {
             System.out.println("게시글 삭제 권한 없음 예외 발생");
             throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         }

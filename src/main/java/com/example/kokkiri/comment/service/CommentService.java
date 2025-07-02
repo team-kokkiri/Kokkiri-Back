@@ -9,6 +9,7 @@ import com.example.kokkiri.comment.dto.CommentUpdateReqDto;
 import com.example.kokkiri.comment.repository.CommentLikeRepository;
 import com.example.kokkiri.comment.repository.CommentRepository;
 import com.example.kokkiri.member.domain.Member;
+import com.example.kokkiri.member.domain.Role;
 import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.notification.domain.NotificationType;
 import com.example.kokkiri.notification.service.NotificationService;
@@ -105,7 +106,11 @@ public class CommentService {
     // 댓글, 답글 삭제
     public void softDeleteComment(Long commentId, Member member) {
         Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new EntityNotFoundException("댓글이 존재하지 않습니다."));
-        if (!comment.getMember().getId().equals(member.getId())) {
+        // 권한 체크: 작성자 본인 또는 관리자
+        boolean isWriter = comment.getMember().getId().equals(member.getId());
+        boolean isAdmin = member.getRole() == Role.ADMIN;
+
+        if (!isWriter && !isAdmin) {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
         comment.markDeleted();
