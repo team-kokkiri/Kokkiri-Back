@@ -69,4 +69,11 @@ public class EmitterRepositoryImpl implements EmitterRepository {
                 }
         );
     }
+
+    @Override
+    public Map<String, SseEmitter> findAll() {
+        return new ConcurrentHashMap<>(emitters);
+    }
+
+
 }
