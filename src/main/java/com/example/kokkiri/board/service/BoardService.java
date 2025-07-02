@@ -245,10 +245,10 @@ public class BoardService {
     public void softDeleteBoard(Long boardId, Member member) {
         Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
         // 권한 체크: 작성자 본인 또는 관리자
-        boolean isOwner = board.getMember().getId().equals(member.getId());
+        boolean isWriter = board.getMember().getId().equals(member.getId());
         boolean isAdmin = member.getRole() == Role.ADMIN;
 
-        if (!isOwner && !isAdmin) {
+        if (!isWriter && !isAdmin) {
             System.out.println("게시글 삭제 권한 없음 예외 발생");
             throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         }

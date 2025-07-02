@@ -107,10 +107,10 @@ public class CommentService {
     public void softDeleteComment(Long commentId, Member member) {
         Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new EntityNotFoundException("댓글이 존재하지 않습니다."));
         // 권한 체크: 작성자 본인 또는 관리자
-        boolean isAuthor = comment.getMember().getId().equals(member.getId());
+        boolean isWriter = comment.getMember().getId().equals(member.getId());
         boolean isAdmin = member.getRole() == Role.ADMIN;
 
-        if (!isAuthor && !isAdmin) {
+        if (!isWriter && !isAdmin) {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
         comment.markDeleted();
