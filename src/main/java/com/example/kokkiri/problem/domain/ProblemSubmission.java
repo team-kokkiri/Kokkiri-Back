@@ -49,4 +49,10 @@ public class ProblemSubmission {
     private LocalDateTime submissionTime = LocalDateTime.now();
     
     private LocalDateTime judgeTime;        // 채점 완료 시간
+    
+    @Column
+    private Integer passedTestCaseCount;  // 통과한 테스트케이스 수
+
+    @Column(columnDefinition = "TEXT")
+    private String testCaseResults;  // 각 테스트케이스별 결과 JSON
 }

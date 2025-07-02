@@ -5,8 +5,12 @@ import com.example.kokkiri.member.repository.MemberRepository;
 import com.example.kokkiri.problem.domain.DailyProblem;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
 import com.example.kokkiri.problem.domain.SubmissionStatus;
+import com.example.kokkiri.problem.domain.TestCase;
+import com.example.kokkiri.problem.dto.TestCaseResultDto;
 import com.example.kokkiri.problem.repository.DailyProblemRepository;
 import com.example.kokkiri.problem.repository.ProblemSubmissionRepository;
+import com.example.kokkiri.problem.repository.TestCaseRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -14,14 +18,12 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -31,7 +33,9 @@ public class ProblemSubmissionService {
     private final ProblemSubmissionRepository submissionRepository;
     private final DailyProblemRepository dailyProblemRepository;
     private final MemberRepository memberRepository;
+    private final TestCaseRepository testCaseRepository;
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
     
     // DailyRankingService는 @Lazy로 주입하여 순환 참조 방지
     @Lazy
@@ -40,13 +44,16 @@ public class ProblemSubmissionService {
     public ProblemSubmissionService(ProblemSubmissionRepository submissionRepository,
                                   DailyProblemRepository dailyProblemRepository,
                                   MemberRepository memberRepository,
+                                  TestCaseRepository testCaseRepository,
                                   @Lazy DailyRankingService dailyRankingService,
                                   WebClient.Builder webClientBuilder,
                                   @Value("${judge0.api-key}") String apiKey) {
         this.submissionRepository = submissionRepository;
         this.dailyProblemRepository = dailyProblemRepository;
         this.memberRepository = memberRepository;
+        this.testCaseRepository = testCaseRepository;
         this.dailyRankingService = dailyRankingService;
+        this.objectMapper = new ObjectMapper();
         this.webClient = webClientBuilder
                 .baseUrl("https://judge0-ce.p.rapidapi.com")
                 .defaultHeader("x-rapidapi-key", apiKey)
@@ -84,21 +91,72 @@ public class ProblemSubmissionService {
         ProblemSubmission fetchedSubmission = submissionRepository.findByIdWithFetch(savedSubmission.getId())
                 .orElse(savedSubmission);
         
-        // Judge0를 통한 채점 수행 (비동기)
-        return executeJudging(fetchedSubmission, problem)
+        // 테스트케이스 조회
+        List<TestCase> testCases = testCaseRepository.findByDailyProblemIdOrderByOrderNum(problemId);
+        
+        // 모든 테스트케이스에 대해 Judge0 실행
+        return executeJudgingWithTestCases(fetchedSubmission, problem, testCases)
                 .doOnError(error -> log.error("채점 처리 중 오류 발생: 제출ID={}", fetchedSubmission.getId(), error));
     }
     
     /**
-     * Judge0를 통한 코드 실행 및 채점
+     * 모든 테스트케이스에 대한 채점 실행
      */
-    private Mono<ProblemSubmission> executeJudging(ProblemSubmission submission, DailyProblem problem) {
-        String encodedSourceCode = Base64.getEncoder().encodeToString(submission.getSourceCode().getBytes());
-        String encodedInput = "";
+    private Mono<ProblemSubmission> executeJudgingWithTestCases(ProblemSubmission submission, 
+                                                                DailyProblem problem, 
+                                                                List<TestCase> testCases) {
+        List<Mono<TestCaseResultDto>> testCaseMonos = new ArrayList<>();
         
-        if (problem.getSampleInput() != null) {
-            encodedInput = Base64.getEncoder().encodeToString(problem.getSampleInput().getBytes());
+        for (int i = 0; i < testCases.size(); i++) {
+            TestCase testCase = testCases.get(i);
+            testCaseMonos.add(executeTestCase(submission, testCase, i + 1));
         }
+        
+        return Mono.zip(testCaseMonos, results -> {
+            List<TestCaseResultDto> testCaseResults = new ArrayList<>();
+            int passedCount = 0;
+            SubmissionStatus finalStatus = SubmissionStatus.ACCEPTED;
+            
+            for (Object result : results) {
+                TestCaseResultDto testCaseResult = (TestCaseResultDto) result;
+                testCaseResults.add(testCaseResult);
+                
+                if (testCaseResult.getPassed()) {
+                    passedCount++;
+                } else {
+                    // 첫 번째 실패한 테스트케이스의 상태를 최종 상태로 사용
+                    if (finalStatus == SubmissionStatus.ACCEPTED) {
+                        finalStatus = mapTestCaseStatus(testCaseResult.getStatus());
+                    }
+                }
+            }
+            
+            // 제출 결과 업데이트
+            submission.setPassedTestCaseCount(passedCount);
+            submission.setTestCaseResults(convertToJson(testCaseResults));
+            submission.setStatus(finalStatus);
+            submission.setJudgeTime(LocalDateTime.now());
+            
+            // 모든 테스트케이스를 통과한 경우에만 랭킹 업데이트
+            if (passedCount == testCases.size()) {
+                submission.setStatus(SubmissionStatus.ACCEPTED);
+                try {
+                    dailyRankingService.updateRanking(submission);
+                } catch (Exception e) {
+                    log.error("랭킹 업데이트 실패: 제출ID={}", submission.getId(), e);
+                }
+            }
+            
+            return submissionRepository.save(submission);
+        });
+    }
+    
+    /**
+     * 단일 테스트케이스 실행
+     */
+    private Mono<TestCaseResultDto> executeTestCase(ProblemSubmission submission, TestCase testCase, int testCaseNum) {
+        String encodedSourceCode = Base64.getEncoder().encodeToString(submission.getSourceCode().getBytes());
+        String encodedInput = Base64.getEncoder().encodeToString(testCase.getInput().getBytes());
         
         Map<String, String> requestPayload = new HashMap<>();
         requestPayload.put("language_id", getLanguageId(submission.getLanguage()));
@@ -113,14 +171,77 @@ public class ProblemSubmissionService {
                 .bodyToMono(Map.class)
                 .flatMap(response -> {
                     String token = (String) response.get("token");
-                    return pollJudgeResult(token, submission, problem);
-                });
+                    return pollJudgeResult(token);
+                })
+                .map(result -> evaluateTestCaseResult(result, testCase, testCaseNum))
+                .onErrorReturn(TestCaseResultDto.builder()
+                        .testCaseNum(testCaseNum)
+                        .passed(false)
+                        .status("ERROR")
+                        .errorMessage("테스트케이스 실행 중 오류 발생")
+                        .build());
+    }
+    
+    /**
+     * 테스트케이스 결과 평가
+     */
+    private TestCaseResultDto evaluateTestCaseResult(Map judgeResult, TestCase testCase, int testCaseNum) {
+        TestCaseResultDto.TestCaseResultDtoBuilder resultBuilder = TestCaseResultDto.builder()
+                .testCaseNum(testCaseNum)
+                .expectedOutput(testCase.getExpectedOutput());
+        
+        try {
+            String stdout = (String) judgeResult.get("stdout");
+            String stderr = (String) judgeResult.get("stderr");
+            Map status = (Map) judgeResult.get("status");
+            Object time = judgeResult.get("time");
+            Object memory = judgeResult.get("memory");
+            
+            if (time != null) {
+                resultBuilder.executionTime((int) (Double.parseDouble(time.toString()) * 1000));
+            }
+            if (memory != null) {
+                resultBuilder.memoryUsage(Integer.parseInt(memory.toString()));
+            }
+            
+            Integer statusId = status != null ? (Integer) status.get("id") : null;
+            
+            if (statusId != null && statusId == 3) { // Accepted
+                if (stdout != null) {
+                    String actualOutput = new String(Base64.getDecoder().decode(stdout)).trim();
+                    resultBuilder.actualOutput(actualOutput);
+                    
+                    boolean passed = actualOutput.equals(testCase.getExpectedOutput().trim());
+                    resultBuilder.passed(passed);
+                    resultBuilder.status(passed ? "PASSED" : "FAILED");
+                } else {
+                    resultBuilder.passed(false);
+                    resultBuilder.status("FAILED");
+                    resultBuilder.errorMessage("출력이 없습니다");
+                }
+            } else {
+                resultBuilder.passed(false);
+                resultBuilder.status(mapStatusIdToString(statusId));
+                
+                if (stderr != null) {
+                    resultBuilder.errorMessage(new String(Base64.getDecoder().decode(stderr)));
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("테스트케이스 결과 평가 중 오류: testCase={}", testCaseNum, e);
+            resultBuilder.passed(false);
+            resultBuilder.status("ERROR");
+            resultBuilder.errorMessage("결과 평가 중 오류 발생");
+        }
+        
+        return resultBuilder.build();
     }
     
     /**
      * Judge0 결과 폴링
      */
-    private Mono<ProblemSubmission> pollJudgeResult(String token, ProblemSubmission submission, DailyProblem problem) {
+    private Mono<Map> pollJudgeResult(String token) {
         return Mono.defer(() -> getJudgeResult(token))
                 .expand(result -> {
                     Map status = (Map) result.get("status");
@@ -132,8 +253,7 @@ public class ProblemSubmissionService {
                         return Mono.empty();
                     }
                 })
-                .last()
-                .map(result -> updateSubmissionWithResult(submission, result, problem));
+                .last();
     }
     
     /**
@@ -146,127 +266,44 @@ public class ProblemSubmissionService {
                 .bodyToMono(Map.class);
     }
     
-    /**
-     * 제출 기록을 Judge0 결과로 업데이트
-     */
-    @Transactional
-    public ProblemSubmission updateSubmissionWithResult(ProblemSubmission submission, Map judgeResult, DailyProblem problem) {
+    private String convertToJson(List<TestCaseResultDto> results) {
         try {
-            // DB에서 연관 엔티티를 포함하여 다시 조회
-            ProblemSubmission managedSubmission = submissionRepository.findByIdWithFetch(submission.getId())
-                    .orElseThrow(() -> new IllegalStateException("제출 기록을 찾을 수 없습니다: " + submission.getId()));
-            
-            // 실행 결과 파싱
-            String stdout = (String) judgeResult.get("stdout");
-            String stderr = (String) judgeResult.get("stderr");
-            String compileOutput = (String) judgeResult.get("compile_output");
-            Map status = (Map) judgeResult.get("status");
-            
-            // 실행 시간 및 메모리 사용량
-            Object time = judgeResult.get("time");
-            Object memory = judgeResult.get("memory");
-            
-            if (time != null) {
-                managedSubmission.setExecutionTime((int) (Double.parseDouble(time.toString()) * 1000)); // ms로 변환
-            }
-            if (memory != null) {
-                managedSubmission.setMemoryUsage(Integer.parseInt(memory.toString()));
-            }
-            
-            // 상태 결정
-            SubmissionStatus submissionStatus = determineStatus(status, stdout, problem);
-            managedSubmission.setStatus(submissionStatus);
-            
-            // 결과 메시지 구성
-            StringBuilder resultMessage = new StringBuilder();
-            if (stdout != null) {
-                resultMessage.append("Output: ").append(new String(Base64.getDecoder().decode(stdout))).append("\n");
-            }
-            if (stderr != null) {
-                resultMessage.append("Error: ").append(new String(Base64.getDecoder().decode(stderr))).append("\n");
-            }
-            if (compileOutput != null) {
-                resultMessage.append("Compile: ").append(new String(Base64.getDecoder().decode(compileOutput)));
-            }
-            
-            managedSubmission.setJudgeResult(resultMessage.toString());
-            managedSubmission.setJudgeTime(LocalDateTime.now());
-            
-            // 에러 메시지 설정
-            if (submissionStatus != SubmissionStatus.ACCEPTED) {
-                managedSubmission.setErrorMessage(getErrorMessage(submissionStatus, resultMessage.toString()));
-            }
-            
-            log.info("채점 완료: 제출ID={}, 상태={}", managedSubmission.getId(), submissionStatus);
-            ProblemSubmission savedSubmission = submissionRepository.save(managedSubmission);
-            
-            // 정답인 경우 랭킹 업데이트 (트랜잭션 내에서 처리)
-            if (submissionStatus == SubmissionStatus.ACCEPTED) {
-                try {
-                    dailyRankingService.updateRanking(savedSubmission);
-                } catch (Exception e) {
-                    log.error("랭킹 업데이트 실패: 제출ID={}", savedSubmission.getId(), e);
-                }
-            }
-            
-            // 연관 엔티티를 포함하여 다시 조회하여 반환
-            return submissionRepository.findByIdWithFetch(savedSubmission.getId())
-                    .orElse(savedSubmission);
-            
+            return objectMapper.writeValueAsString(results);
         } catch (Exception e) {
-            log.error("채점 결과 처리 중 오류 발생: 제출ID={}", submission.getId(), e);
-            
-            // 실패 시에도 관리되는 엔티티로 업데이트
-            ProblemSubmission managedSubmission = submissionRepository.findByIdWithFetch(submission.getId())
-                    .orElse(submission);
-            
-            managedSubmission.setStatus(SubmissionStatus.RUNTIME_ERROR);
-            managedSubmission.setErrorMessage("채점 처리 중 오류가 발생했습니다.");
-            managedSubmission.setJudgeTime(LocalDateTime.now());
-            ProblemSubmission saved = submissionRepository.save(managedSubmission);
-            
-            // 연관 엔티티를 포함하여 다시 조회하여 반환
-            return submissionRepository.findByIdWithFetch(saved.getId())
-                    .orElse(saved);
+            log.error("JSON 변환 실패", e);
+            return "[]";
         }
     }
     
-    /**
-     * Judge0 상태와 출력을 기반으로 제출 상태 결정
-     */
-    private SubmissionStatus determineStatus(Map status, String stdout, DailyProblem problem) {
-        if (status == null) return SubmissionStatus.RUNTIME_ERROR;
-        
-        Integer statusId = (Integer) status.get("id");
-        
-        switch (statusId) {
-            case 3: // Accepted
-                // 출력 결과와 예상 출력 비교
-                if (stdout != null && problem.getSampleOutput() != null) {
-                    String actualOutput = new String(Base64.getDecoder().decode(stdout)).trim();
-                    String expectedOutput = problem.getSampleOutput().trim();
-                    return actualOutput.equals(expectedOutput) ? SubmissionStatus.ACCEPTED : SubmissionStatus.WRONG_ANSWER;
-                }
-                return SubmissionStatus.ACCEPTED;
-            case 4: // Wrong Answer
+    private SubmissionStatus mapTestCaseStatus(String status) {
+        switch (status) {
+            case "FAILED":
                 return SubmissionStatus.WRONG_ANSWER;
-            case 5: // Time Limit Exceeded
+            case "COMPILE_ERROR":
+                return SubmissionStatus.COMPILE_ERROR;
+            case "RUNTIME_ERROR":
+                return SubmissionStatus.RUNTIME_ERROR;
+            case "TIME_LIMIT_EXCEEDED":
                 return SubmissionStatus.TIME_LIMIT_EXCEEDED;
-            case 6: // Compilation Error
-                return SubmissionStatus.COMPILE_ERROR;
-            case 7: // Runtime Error (SIGSEGV)
-            case 8: // Runtime Error (SIGXFSZ)
-            case 9: // Runtime Error (SIGFPE)
-            case 10: // Runtime Error (SIGABRT)
-            case 11: // Runtime Error (NZEC)
-            case 12: // Runtime Error (Other)
-                return SubmissionStatus.RUNTIME_ERROR;
-            case 13: // Internal Error
-                return SubmissionStatus.RUNTIME_ERROR;
-            case 14: // Exec Format Error
-                return SubmissionStatus.COMPILE_ERROR;
             default:
                 return SubmissionStatus.RUNTIME_ERROR;
+        }
+    }
+    
+    private String mapStatusIdToString(Integer statusId) {
+        if (statusId == null) return "ERROR";
+        
+        switch (statusId) {
+            case 4: return "FAILED";
+            case 5: return "TIME_LIMIT_EXCEEDED";
+            case 6: return "COMPILE_ERROR";
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12: return "RUNTIME_ERROR";
+            default: return "ERROR";
         }
     }
     
@@ -285,22 +322,18 @@ public class ProblemSubmissionService {
     }
     
     /**
-     * 상태에 따른 에러 메시지 생성
+     * 테스트케이스 결과 파싱
      */
-    private String getErrorMessage(SubmissionStatus status, String judgeResult) {
-        switch (status) {
-            case WRONG_ANSWER:
-                return "출력 결과가 예상 결과와 다릅니다.";
-            case COMPILE_ERROR:
-                return "컴파일 오류가 발생했습니다.";
-            case RUNTIME_ERROR:
-                return "실행 중 오류가 발생했습니다.";
-            case TIME_LIMIT_EXCEEDED:
-                return "시간 제한을 초과했습니다.";
-            case MEMORY_LIMIT_EXCEEDED:
-                return "메모리 제한을 초과했습니다.";
-            default:
-                return judgeResult;
+    public List<TestCaseResultDto> parseTestCaseResults(String testCaseResults) {
+        if (testCaseResults == null || testCaseResults.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return Arrays.asList(objectMapper.readValue(testCaseResults, TestCaseResultDto[].class));
+        } catch (Exception e) {
+            log.error("테스트케이스 결과 파싱 실패", e);
+            return new ArrayList<>();
         }
     }
     

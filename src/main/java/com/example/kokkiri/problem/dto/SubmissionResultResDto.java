@@ -4,6 +4,8 @@ import com.example.kokkiri.problem.service.DailyProblemFacadeService;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 public class SubmissionResultResDto {
@@ -14,6 +16,9 @@ public class SubmissionResultResDto {
     private DailyRankingResDto ranking;
     private boolean isAccepted;
     private boolean isNewRanking;
+    private Integer totalTestCases;
+    private Integer passedTestCases;
+    private List<TestCaseResultDto> testCaseResults;
     
     public static SubmissionResultResDto from(DailyProblemFacadeService.SubmissionResult result) {
         return SubmissionResultResDto.builder()
@@ -23,6 +28,9 @@ public class SubmissionResultResDto {
                 .ranking(result.ranking != null ? DailyRankingResDto.from(result.ranking) : null)
                 .isAccepted(result.submission != null && result.submission.getStatus().name().equals("ACCEPTED"))
                 .isNewRanking(result.ranking != null)
+                .totalTestCases(result.totalTestCases)
+                .passedTestCases(result.passedTestCases)
+                .testCaseResults(result.testCaseResults)
                 .build();
     }
 }

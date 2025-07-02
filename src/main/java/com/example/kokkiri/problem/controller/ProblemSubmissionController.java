@@ -1,9 +1,12 @@
 package com.example.kokkiri.problem.controller;
 
 import com.example.kokkiri.common.dto.CommonResDto;
+import com.example.kokkiri.common.oauth.CustomOAuth2User;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
+import com.example.kokkiri.problem.domain.TestCase;
 import com.example.kokkiri.problem.dto.*;
+import com.example.kokkiri.problem.repository.TestCaseRepository;
 import com.example.kokkiri.problem.service.DailyProblemFacadeService;
 import com.example.kokkiri.problem.service.DailyRankingService;
 import com.example.kokkiri.problem.service.ProblemSubmissionService;
@@ -11,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -27,6 +31,7 @@ public class ProblemSubmissionController {
     private final ProblemSubmissionService submissionService;
     private final DailyProblemFacadeService facadeService;
     private final DailyRankingService rankingService;
+    private final TestCaseRepository testCaseRepository;
     
     /**
      * 코드 제출 및 채점
@@ -218,10 +223,54 @@ public class ProblemSubmissionController {
     }
     
 
-    
-
-    
-
-    
-
+    /**
+     * 테스트케이스 결과 조회 (본인의 제출만 가능)
+     */
+    @GetMapping("/{submissionId}/testcases")
+    public ResponseEntity<CommonResDto<List<TestCaseResultDto>>> getTestCaseResults(
+            @PathVariable Long submissionId,
+            @AuthenticationPrincipal CustomOAuth2User user) {
+        
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(CommonResDto.error("로그인이 필요합니다."));
+        }
+        
+        try {
+            ProblemSubmission submission = submissionService.getSubmissionById(submissionId)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 제출입니다."));
+            
+            // 본인의 제출인지 확인
+            if (!submission.getMember().getId().equals(user.getMemberId())) {
+                throw new AccessDeniedException("접근 권한이 없습니다.");
+            }
+            
+            List<TestCaseResultDto> results = submissionService.parseTestCaseResults(submission.getTestCaseResults());
+            
+            // 히든 테스트케이스는 결과만 표시 (입출력 숨김)
+            List<TestCase> testCases = testCaseRepository.findByDailyProblemIdOrderByOrderNum(
+                    submission.getDailyProblem().getId());
+            
+            for (int i = 0; i < results.size() && i < testCases.size(); i++) {
+                if (testCases.get(i).getIsHidden()) {
+                    TestCaseResultDto result = results.get(i);
+                    result.setActualOutput("Hidden");
+                    result.setExpectedOutput("Hidden");
+                }
+            }
+            
+            return ResponseEntity.ok(CommonResDto.success(results));
+            
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(CommonResDto.error(e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonResDto.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("테스트케이스 결과 조회 중 오류 발생: 제출ID={}", submissionId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResDto.error("서버 오류가 발생했습니다."));
+        }
+    }
 }

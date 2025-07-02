@@ -57,4 +57,9 @@ public class DailyProblem extends BaseTimeEntity {
     @OneToMany(mappedBy = "dailyProblem", cascade = CascadeType.ALL)
     @Builder.Default
     private List<DailyRanking> rankings = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "dailyProblem", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderNum ASC")
+    @Builder.Default
+    private List<TestCase> testCases = new ArrayList<>();
 }

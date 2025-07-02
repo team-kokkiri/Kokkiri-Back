@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,4 +29,6 @@ public class DailyProblemCreateReqDto {
     private Integer timeLimit = 1000;
     
     private Integer memoryLimit = 128;
+    
+    private List<TestCaseDto> testCases;
 }

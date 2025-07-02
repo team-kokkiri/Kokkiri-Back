@@ -55,21 +55,21 @@ public class DailyProblemController {
                 );
             }
             
-            // 엔티티 생성
-            DailyProblem dailyProblem = DailyProblem.builder()
-                    .problemDate(requestDto.getProblemDate())
-                    .title(requestDto.getTitle())
-                    .description(requestDto.getDescription())
-                    .inputDescription(requestDto.getInputDescription())
-                    .outputDescription(requestDto.getOutputDescription())
-                    .sampleInput(requestDto.getSampleInput())
-                    .sampleOutput(requestDto.getSampleOutput())
-                    .timeLimit(requestDto.getTimeLimit())
-                    .memoryLimit(requestDto.getMemoryLimit())
-                    .build();
+            // 테스트케이스 검증 (3개 필수)
+            if (requestDto.getTestCases() == null || requestDto.getTestCases().size() != 3) {
+                return new ResponseEntity<>(
+                    new CommonResDto(HttpStatus.BAD_REQUEST, "테스트케이스는 정확히 3개여야 합니다.", null), 
+                    HttpStatus.BAD_REQUEST
+                );
+            }
             
-            DailyProblem savedProblem = dailyProblemService.createDailyProblem(dailyProblem);
-            DailyProblemResDto response = DailyProblemResDto.from(savedProblem);
+            // 테스트케이스 순서 확인
+            for (int i = 0; i < requestDto.getTestCases().size(); i++) {
+                requestDto.getTestCases().get(i).setOrderNum(i + 1);
+            }
+            
+            // DTO를 사용하여 서비스 호출
+            DailyProblemResDto response = dailyProblemService.createDailyProblem(requestDto);
             
             return new ResponseEntity<>(new CommonResDto(HttpStatus.CREATED, "문제 생성 성공", response), HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {

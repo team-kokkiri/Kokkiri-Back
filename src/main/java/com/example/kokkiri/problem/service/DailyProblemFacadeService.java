@@ -4,6 +4,7 @@ import com.example.kokkiri.problem.domain.DailyProblem;
 import com.example.kokkiri.problem.domain.DailyRanking;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
 import com.example.kokkiri.problem.domain.SubmissionStatus;
+import com.example.kokkiri.problem.dto.TestCaseResultDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -76,9 +77,14 @@ public class DailyProblemFacadeService {
                         }
                     }
                     
-                    return new SubmissionResult(true, "제출이 완료되었습니다.", submission, ranking);
+                    // 테스트케이스 결과 파싱
+                    List<TestCaseResultDto> testCaseResults = submissionService.parseTestCaseResults(submission.getTestCaseResults());
+                    int totalTestCases = testCaseResults.size();
+                    int passedTestCases = submission.getPassedTestCaseCount() != null ? submission.getPassedTestCaseCount() : 0;
+                    
+                    return new SubmissionResult(true, "제출이 완료되었습니다.", submission, ranking, totalTestCases, passedTestCases, testCaseResults);
                 })
-                .onErrorReturn(new SubmissionResult(false, "제출 처리 중 오류가 발생했습니다.", null, null));
+                .onErrorReturn(new SubmissionResult(false, "제출 처리 중 오류가 발생했습니다.", null, null, 0, 0, null));
     }
     
     // DTO 클래스들
@@ -102,12 +108,23 @@ public class DailyProblemFacadeService {
         public final String message;
         public final ProblemSubmission submission;
         public final DailyRanking ranking;
+        public final int totalTestCases;
+        public final int passedTestCases;
+        public final List<TestCaseResultDto> testCaseResults;
         
         public SubmissionResult(boolean success, String message, ProblemSubmission submission, DailyRanking ranking) {
+            this(success, message, submission, ranking, 0, 0, null);
+        }
+        
+        public SubmissionResult(boolean success, String message, ProblemSubmission submission, DailyRanking ranking,
+                              int totalTestCases, int passedTestCases, List<TestCaseResultDto> testCaseResults) {
             this.success = success;
             this.message = message;
             this.submission = submission;
             this.ranking = ranking;
+            this.totalTestCases = totalTestCases;
+            this.passedTestCases = passedTestCases;
+            this.testCaseResults = testCaseResults;
         }
     }
 }
