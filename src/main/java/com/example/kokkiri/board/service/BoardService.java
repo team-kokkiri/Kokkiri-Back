@@ -128,7 +128,7 @@ public class BoardService {
                 // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
 //                .map(BoardFile::getFilePath)
                 .map(file -> "/api/files/" + file.getSavedName())
-                .orElse("/images/profile/images.png");
+                .orElse(null);
 
         return new BoardListResDto(
                 board.getId(),
@@ -275,7 +275,7 @@ public class BoardService {
         if (!postWriter.getId().equals(member.getId())) {
             String content = member.getNickname() + "님이 회원님의 게시글을 좋아합니다.";
             String url = "/" + board.getBoardType().getId() + "/" + board.getId();
-                    notificationService.send(
+            notificationService.send(
                     postWriter,
                     NotificationType.LIKE_BOARD,
                     content,

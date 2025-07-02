@@ -127,7 +127,7 @@ public class ReportService {
         };
     }
 
-    // 신고 상태 병경
+    // 신고 상태 변경
     public void updateReportStatus(Long reportId, ReportStatus status) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new EntityNotFoundException("ID " + reportId + "에 해당하는 신고가 존재하지 않습니다."));
