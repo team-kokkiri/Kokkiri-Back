@@ -14,6 +14,7 @@ public class BoardListResDto {
     private String boardTitle;
     private String boardContent;
     private String writer;
+    private String memberAvatar;  // 작성자 프로필 이미지 추가
     private int likeCount;
     private Long commentCount; // count() 쿼리 결과는 JPA가 항상 Long을 반환
     private LocalDateTime createdAt;

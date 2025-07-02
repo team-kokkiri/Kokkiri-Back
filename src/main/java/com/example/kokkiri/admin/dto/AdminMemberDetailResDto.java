@@ -15,6 +15,7 @@ public class AdminMemberDetailResDto {
     private Long id;
     private String email;
     private String nickname;
+    private String avatar;  // 프로필 이미지 추가
     private Role role;
     private String isActive;
     private String teamName;

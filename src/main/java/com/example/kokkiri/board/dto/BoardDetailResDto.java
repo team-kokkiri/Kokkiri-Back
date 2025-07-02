@@ -16,6 +16,7 @@ public class BoardDetailResDto {
     private String boardTitle;
     private String boardContent;
     private String writer;
+    private String memberAvatar;  // 작성자 프로필 이미지 추가
     private Long memberId;
     private int likeCount;
     private int commentCount;

@@ -135,6 +135,7 @@ public class MemberService {
                         .memberId(m.getId())
                         .nickname(m.getNickname())
                         .email(m.getEmail())
+                        .avatar(m.getAvatar())
                         .build())
                 .collect(Collectors.toList());
     }

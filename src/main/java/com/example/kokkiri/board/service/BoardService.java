@@ -135,6 +135,7 @@ public class BoardService {
                 board.getBoardTitle(),
                 board.getBoardContent(),
                 board.getMember().getNickname(),
+                board.getMember().getAvatar(),  // 작성자 아바타 추가
                 board.getLikeCount(),
                 commentCount,
                 board.getCreatedTime(),
@@ -161,6 +162,7 @@ public class BoardService {
                         comment.getId(),
                         comment.getMember().getId(),
                         comment.getMember().getNickname(),
+                        comment.getMember().getAvatar(),  // 댓글 작성자 아바타 추가
                         comment.getParent() != null ? comment.getParent().getId() : null,
                         comment.getDelYn().equals("Y") ? "삭제된 댓글입니다." : comment.getCommentContent(),
                         comment.getLikeCount(),
@@ -194,6 +196,7 @@ public class BoardService {
                 .boardContent(board.getBoardContent())
                 .memberId(board.getMember().getId())
                 .writer(board.getMember().getNickname())
+                .memberAvatar(board.getMember().getAvatar())  // 작성자 아바타 추가
                 .likeCount(board.getLikeCount())
                 .commentCount(Math.toIntExact(visibleCommentCount))
                 .boardCreatedAt(board.getCreatedTime())
