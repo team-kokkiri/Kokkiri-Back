@@ -195,6 +195,7 @@ public class BoardService {
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
+                .BoardTypeId(board.getBoardType().getId())
                 .memberId(board.getMember().getId())
                 .writer(board.getMember().getNickname())
                 .memberAvatar(board.getMember().getAvatar())  // 작성자 아바타 추가
@@ -223,7 +224,8 @@ public class BoardService {
         // keepFileIds가 null인 경우 삭제 로직을 건너뜀
         if (keepFileIds != null) {
             List<BoardFile> filesToDelete = board.getBoardFiles().stream()
-                    .filter(file -> !keepFileIds.contains(file.getId()))
+//                    .filter(file -> !keepFileIds.contains(file.getId()))
+                    .filter(file -> file.getId() != null && !keepFileIds.contains(file.getId()))
                     .toList();
 
             for (BoardFile file : filesToDelete) {
