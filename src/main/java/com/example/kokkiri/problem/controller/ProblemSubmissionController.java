@@ -1,7 +1,6 @@
 package com.example.kokkiri.problem.controller;
 
 import com.example.kokkiri.common.dto.CommonResDto;
-import com.example.kokkiri.common.oauth.CustomOAuth2User;
 import com.example.kokkiri.member.domain.Member;
 import com.example.kokkiri.problem.domain.ProblemSubmission;
 import com.example.kokkiri.problem.domain.TestCase;
@@ -227,13 +226,15 @@ public class ProblemSubmissionController {
      * 테스트케이스 결과 조회 (본인의 제출만 가능)
      */
     @GetMapping("/{submissionId}/testcases")
-    public ResponseEntity<CommonResDto<List<TestCaseResultDto>>> getTestCaseResults(
+    public ResponseEntity<CommonResDto> getTestCaseResults(
             @PathVariable Long submissionId,
-            @AuthenticationPrincipal CustomOAuth2User user) {
+            @AuthenticationPrincipal Member member) {
         
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(CommonResDto.error("로그인이 필요합니다."));
+        if (member == null) {
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.", null),
+                HttpStatus.UNAUTHORIZED
+            );
         }
         
         try {
@@ -241,7 +242,7 @@ public class ProblemSubmissionController {
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 제출입니다."));
             
             // 본인의 제출인지 확인
-            if (!submission.getMember().getId().equals(user.getMemberId())) {
+            if (!submission.getMember().getId().equals(member.getId())) {
                 throw new AccessDeniedException("접근 권한이 없습니다.");
             }
             
@@ -259,18 +260,27 @@ public class ProblemSubmissionController {
                 }
             }
             
-            return ResponseEntity.ok(CommonResDto.success(results));
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.OK, "테스트케이스 결과 조회 성공", results),
+                HttpStatus.OK
+            );
             
         } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(CommonResDto.error(e.getMessage()));
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.FORBIDDEN, e.getMessage(), null),
+                HttpStatus.FORBIDDEN
+            );
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(CommonResDto.error(e.getMessage()));
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.NOT_FOUND, e.getMessage(), null),
+                HttpStatus.NOT_FOUND
+            );
         } catch (Exception e) {
             log.error("테스트케이스 결과 조회 중 오류 발생: 제출ID={}", submissionId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResDto.error("서버 오류가 발생했습니다."));
+            return new ResponseEntity<>(
+                new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
 }
