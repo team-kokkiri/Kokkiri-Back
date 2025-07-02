@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,12 +72,21 @@ public class NotificationService {
 //        });
 //    }
 
+    // notification 저장
     @Transactional
     public Notification createAndSaveNotification(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
-        Notification notification = createNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt);
+        Notification notification = Notification.builder()
+                .receiver(receiver)
+                .notificationType(notificationType)
+                .content(content)
+                .url(url)
+                .invitationId(invitationId)
+                .actionCreatedAt(actionCreatedAt)
+                .build();
         return notificationRepository.save(notification);
     }
 
+    // 클라이언트에게 notification 전송
     public void send(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
         // Step 1. DB에 알림 저장 (트랜잭션 완료)
         Notification notification = createAndSaveNotification(receiver, notificationType, content, url, invitationId, actionCreatedAt);
@@ -89,6 +99,8 @@ public class NotificationService {
             sendNotificationToClient(emitter, emitterId, notification);
         });
     }
+
+    // notification 리스트 조회
     @Transactional(readOnly = true)
     public NotificationPageResDto getNotifications(Long lastId, int size) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -133,7 +145,6 @@ public class NotificationService {
         Member member = getCurrentMember(email);
         notificationRepository.deleteAllNonChatNotificationsForUser(member);
         chatInvitationRepository.softDeleteAllByInvitedMemberId(member.getId());
-
     }
 
     @Transactional
@@ -162,17 +173,37 @@ public class NotificationService {
         notificationRepository.softDeleteByIdAndMember(notificationId, member);
     }
 
-
-    // =================  PRIVATE HELPER METHODS  ================= //
-
     public Member getCurrentMember(String email) {
-        Member member = memberRepository.findByEmailAndIsDeleted
-
-(email,"N")
+        Member member = memberRepository.findByEmailAndIsDeleted(email,"N")
                 .orElseThrow(() -> new EntityNotFoundException("Member not found with email: " + email));
         return member;
     }
 
+    @Scheduled(fixedRate = 30000) // 30초마다 실행
+    public void sendHeartbeat() {
+        // 현재 저장된 모든 Emitter에 대해 반복
+        emitterRepository.findAll().forEach((id, emitter) -> {
+            try {
+                // "heartbeat" 라는 이름의 더미 이벤트 전송
+                emitter.send(SseEmitter.event()
+                        .name("heartbeat")
+                        .comment("keeping connection alive"));
+
+                log.info("Sent heartbeat to emitterId: {}", id);
+
+            } catch (IOException e) {
+                // IOExcepion이 발생하면 연결이 끊긴 것이므로,
+                // 저장소에서 해당 Emitter를 즉시 삭제한다.
+                log.warn("Heartbeat failed for emitterId: {}. Removing emitter.", id);
+                emitterRepository.deleteById(id);
+            }
+        });
+    }
+
+
+    // =================  PRIVATE HELPER METHODS  ================= //
+
+    // emitter 정리 로직 등록
     private void setupSseCallbacks(SseEmitter sseEmitter, String emitterId) {
         Runnable cleanup = () -> {
             try {
@@ -191,6 +222,8 @@ public class NotificationService {
         });
     }
 
+    // 최초 연결시 메세지 전송
+    // 처음 연결이 수립되고 아무 데이터도 보내지 않으면 503 오류가 발생할 수 있어 데이터를 전송함
     private void sendConnectionComment(SseEmitter sseEmitter, Long memberId, String emitterId) {
         try {
             sseEmitter.send(SseEmitter.event().comment("EventStream Connected. [memberId=" + memberId + "]"));
@@ -201,6 +234,7 @@ public class NotificationService {
         }
     }
 
+    // 클라이언트가 연결이 끊겼다가 다시 접속했을 때, 놓친 데이터가 있는지 확인하고 전송
     private void resendLostEvents(SseEmitter sseEmitter, String lastEventId, Long memberId) {
         if (lastEventId != null && !lastEventId.isEmpty()) {
             Map<String, Object> events = emitterRepository.findAllEventCacheStartWithByMemberId(String.valueOf(memberId));
@@ -232,16 +266,5 @@ public class NotificationService {
             log.error("Unexpected error on emitterId: {}", emitterId, e);
             emitterRepository.deleteById(emitterId);
         }
-    }
-
-    private Notification createNotification(Member receiver, NotificationType notificationType, String content, String url, Long invitationId, LocalDateTime actionCreatedAt) {
-        return Notification.builder()
-                .receiver(receiver)
-                .notificationType(notificationType)
-                .content(content)
-                .url(url)
-                .invitationId(invitationId)
-                .actionCreatedAt(actionCreatedAt)
-                .build();
     }
 }
