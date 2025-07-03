@@ -24,7 +24,7 @@ public class DailyProblemController {
     private final DailyProblemFacadeService facadeService;
     
     /**
-     * 오늘의 문제 조회 (랭킹 정보 포함)
+     * 오늘의 문제 조회 (랭킹 정보 포함) ss
      */
     @GetMapping("/today")
     public ResponseEntity<CommonResDto> getTodayProblem(@AuthenticationPrincipal Member member) {
