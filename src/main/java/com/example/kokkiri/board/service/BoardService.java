@@ -53,8 +53,19 @@ public class BoardService {
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 게시판 타입입니다."));
 
         // 프로젝트 소개 게시판 이미지 1개 이상 첨부
+//        if ("프로젝트소개".equals(boardType.getTypeName())) {
+//            if (files == null || files.isEmpty()) {
+//                throw new IllegalArgumentException("프로젝트 소개 글은 이미지 1개 이상 첨부가 필요합니다.");
+//            }
+//        }
         if ("프로젝트소개".equals(boardType.getTypeName())) {
             if (files == null || files.isEmpty()) {
+                throw new IllegalArgumentException("프로젝트 소개 글은 이미지 1개 이상 첨부가 필요합니다.");
+            }
+            boolean containsImage = files.stream().anyMatch(file ->
+                    file.getContentType() != null && file.getContentType().startsWith("image")
+            );
+            if (!containsImage) {
                 throw new IllegalArgumentException("프로젝트 소개 글은 이미지 1개 이상 첨부가 필요합니다.");
             }
         }
@@ -127,7 +138,6 @@ public class BoardService {
                 // 조건을 통과한 이미지 파일 중 첫 번째 파일
                 .findFirst()
                 // 첫 번째 이미지 파일이 있으면 그 객체에서 실제 저장된 파일 경로를 꺼냄 (썸네일 URL로 사용)
-//                .map(BoardFile::getFilePath)
                 .map(file -> "/api/files/" + file.getSavedName())
                 .orElse(null);
 
@@ -195,6 +205,7 @@ public class BoardService {
                 .id(board.getId())
                 .boardTitle(board.getBoardTitle())
                 .boardContent(board.getBoardContent())
+                .BoardTypeId(board.getBoardType().getId())
                 .memberId(board.getMember().getId())
                 .writer(board.getMember().getNickname())
                 .memberAvatar(board.getMember().getAvatar())  // 작성자 아바타 추가
@@ -223,7 +234,8 @@ public class BoardService {
         // keepFileIds가 null인 경우 삭제 로직을 건너뜀
         if (keepFileIds != null) {
             List<BoardFile> filesToDelete = board.getBoardFiles().stream()
-                    .filter(file -> !keepFileIds.contains(file.getId()))
+//                    .filter(file -> !keepFileIds.contains(file.getId()))
+                    .filter(file -> file.getId() != null && !keepFileIds.contains(file.getId()))
                     .toList();
 
             for (BoardFile file : filesToDelete) {

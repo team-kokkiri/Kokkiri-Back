@@ -23,7 +23,8 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // /connect로 요청이 들어오도록 할 것임을 명시
         registry.addEndpoint("/connect")
                 // 웹소켓 관련 CORS 설정 별도로 작성
-                .setAllowedOriginPatterns("http://localhost:8080", "http://192.168.230.207:8080")
+//                .setAllowedOriginPatterns("/*")
+                .setAllowedOriginPatterns("http://localhost:8080", "http://192.168.230.*:8080")
 //                .setAllowedOrigins("http://localhost:8080")
                 // ws://가 아닌 http:// 엔드포인트를 사용할 수 있게 해주는 sockJS 라이브러리를 통한 요청을 허용하는 설정
                 .withSockJS();
