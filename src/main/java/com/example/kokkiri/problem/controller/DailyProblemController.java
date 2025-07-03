@@ -14,6 +14,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/problems")
 @RequiredArgsConstructor
@@ -36,6 +39,48 @@ public class DailyProblemController {
             return new ResponseEntity<>(new CommonResDto(HttpStatus.OK, "오늘의 문제 조회 성공", response), HttpStatus.OK);
         } catch (Exception e) {
             log.error("오늘의 문제 조회 중 오류 발생", e);
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 전체 문제 목록 조회 (페이징)
+     */
+    @GetMapping("/list")
+    public ResponseEntity<CommonResDto> getProblemList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "problemDate") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @AuthenticationPrincipal Member member) {
+        try {
+            Long memberId = member != null ? member.getId() : null;
+            ProblemListResDto response = dailyProblemService.getProblemList(page, size, sortBy, sortDir, memberId);
+            
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.OK, "문제 목록 조회 성공", response), HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("문제 목록 조회 중 오류 발생", e);
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 특정 날짜의 문제 조회
+     */
+    @GetMapping("/date/{date}")
+    public ResponseEntity<CommonResDto> getProblemByDate(@PathVariable String date) {
+        try {
+            LocalDate problemDate = LocalDate.parse(date);
+            Optional<DailyProblem> problem = dailyProblemService.getProblemByDate(problemDate);
+            
+            if (problem.isPresent()) {
+                DailyProblemResDto response = DailyProblemResDto.from(problem.get());
+                return new ResponseEntity<>(new CommonResDto(HttpStatus.OK, "문제 조회 성공", response), HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(new CommonResDto(HttpStatus.NOT_FOUND, "해당 날짜의 문제를 찾을 수 없습니다.", null), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            log.error("문제 조회 중 오류 발생", e);
             return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -76,6 +121,56 @@ public class DailyProblemController {
             return new ResponseEntity<>(new CommonResDto(HttpStatus.CONFLICT, e.getMessage(), null), HttpStatus.CONFLICT);
         } catch (Exception e) {
             log.error("문제 생성 중 오류 발생", e);
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 문제 수정 (관리자 전용)
+     */
+    @PutMapping("/{problemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CommonResDto> updateDailyProblem(
+            @PathVariable Long problemId,
+            @RequestBody DailyProblemCreateReqDto requestDto) {
+        try {
+            // 업데이트할 엔티티 생성
+            DailyProblem updatedProblem = DailyProblem.builder()
+                    .title(requestDto.getTitle())
+                    .description(requestDto.getDescription())
+                    .inputDescription(requestDto.getInputDescription())
+                    .outputDescription(requestDto.getOutputDescription())
+                    .sampleInput(requestDto.getSampleInput())
+                    .sampleOutput(requestDto.getSampleOutput())
+                    .timeLimit(requestDto.getTimeLimit())
+                    .memoryLimit(requestDto.getMemoryLimit())
+                    .build();
+            
+            DailyProblem savedProblem = dailyProblemService.updateDailyProblem(problemId, updatedProblem);
+            DailyProblemResDto response = DailyProblemResDto.from(savedProblem);
+            
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.OK, "문제 수정 성공", response), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.NOT_FOUND, e.getMessage(), null), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            log.error("문제 수정 중 오류 발생", e);
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 문제 삭제 (관리자 전용)
+     */
+    @DeleteMapping("/{problemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CommonResDto> deleteDailyProblem(@PathVariable Long problemId) {
+        try {
+            dailyProblemService.deleteDailyProblem(problemId);
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.OK, "문제 삭제 성공", null), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(new CommonResDto(HttpStatus.NOT_FOUND, e.getMessage(), null), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            log.error("문제 삭제 중 오류 발생", e);
             return new ResponseEntity<>(new CommonResDto(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", null), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
